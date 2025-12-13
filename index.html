@@ -18,6 +18,8 @@
                         'gh-blue': '#0969da',
                         'gh-bg': '#f6f8fa',
                         'gh-dark': '#1f2328',
+                        'gh-success': '#2da44e',
+                        'gh-warning': '#f0b047',
                     }
                 }
             }
@@ -273,25 +275,21 @@
         const userName = document.getElementById('user-name');
         const loadingSpinner = document.getElementById('loading-spinner');
         const authArea = document.getElementById('auth-area');
-        
         const kebabButton = document.getElementById('kebab-button');
         const dropdownMenu = document.getElementById('dropdown-menu');
         const deleteAccountButton = document.getElementById('delete-account-button');
         const pipVideo = document.getElementById('pip-video');
-        
         const pipModal = document.getElementById('pip-modal');
         const modalYesButton = document.getElementById('modal-yes-button');
         const modalNoButton = document.getElementById('modal-no-button');
-        
         const kebabMenu = document.getElementById('kebab-menu'); 
-        
         const imageUpload = document.getElementById('image-upload');
         const labelsInput = document.getElementById('labels-input');
         const assigneesInput = document.getElementById('assignees-input');
         const milestoneInput = document.getElementById('milestone-input');
-        
         const mentionButton = document.getElementById('mention-button');
         const mentionSuggestionsContainer = document.getElementById('mention-suggestions-container');
+        
         let currentMentionQuery = '';
         let mentionStartIndex = -1;
         
@@ -322,7 +320,6 @@
             }, 7000);
         }
 
-        // Initialize Supabase client immediately
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         function debounce(func, timeout = 400) {
@@ -783,6 +780,7 @@
             mentionSuggestionsContainer.classList.remove('hidden');
         }
 
+
         async function createIssue(event) {
             event.preventDefault();
             
@@ -853,7 +851,6 @@
                     const issueUrl = data.html_url;
                     let copied = false;
                     
-                    // Copy URL to clipboard (using execCommand for iframe compatibility)
                     const tempInput = document.createElement('input');
                     tempInput.value = issueUrl;
                     document.body.appendChild(tempInput);
@@ -935,7 +932,6 @@
             bodyInput.addEventListener('blur', () => {
                 setTimeout(hideMentionDropdown, 100); 
             });
-
 
             document.addEventListener('click', (e) => {
                 if (kebabMenu && !kebabMenu.contains(e.target)) {
