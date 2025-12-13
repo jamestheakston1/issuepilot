@@ -850,7 +850,27 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    showNotification(`Issue #${data.number} created successfully in ${repoValue}! Now showing history.`, 'success');
+                    const issueUrl = data.html_url;
+                    let copied = false;
+                    
+                    // Copy URL to clipboard (using execCommand for iframe compatibility)
+                    const tempInput = document.createElement('input');
+                    tempInput.value = issueUrl;
+                    document.body.appendChild(tempInput);
+                    tempInput.select();
+                    try {
+                        copied = document.execCommand('copy');
+                    } catch (err) {
+                        console.error('Could not copy text: ', err);
+                    }
+                    document.body.removeChild(tempInput);
+
+                    let notificationMessage = `Issue #${data.number} created successfully in ${repoValue}! Now showing history.`;
+                    if (copied) {
+                        notificationMessage = `Issue #${data.number} created successfully in ${repoValue}! URL copied to clipboard.`;
+                    }
+
+                    showNotification(notificationMessage, 'success');
                     
                     titleInput.value = '';
                     bodyInput.value = '';
