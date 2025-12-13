@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IssuePilot - Create GitHub Issues Instantly</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configure Tailwind to use Inter font -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'gh-primary': '#24292f',
+                        'gh-blue': '#0969da',
+                        'gh-bg': '#f6f8fa',
+                        'gh-dark': '#1f2328',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Load Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    <!-- Load Supabase Client using the UMD bundle, which creates a global 'supabase' object -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        body {
+            background-color: theme('colors.gh-bg');
+            font-family: theme('fontFamily.sans');
+        }
+        textarea::-webkit-scrollbar {
+            width: 8px;
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background-color: #d1d5db;
+            border-radius: 4px;
+        }
+        textarea::-webkit-scrollbar-track {
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-start justify-center p-4 sm:p-8">
+
+    <div class="w-full max-w-2xl bg-white shadow-xl rounded-xl p-6 sm:p-10 mt-8">
+        
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <div class="flex items-center justify-center space-x-2 text-gh-primary">
+                <i data-feather="github" class="w-8 h-8 text-gh-dark"></i>
+                <h1 class="text-3xl font-extrabold tracking-tight">IssuePilot</h1>
+            </div>
+            <p class="text-gray-500 mt-2 text-lg">Create GitHub Issues instantly using the API.</p>
+        </header>
+
+        <!-- Notification Area -->
+        <div id="notification-box" class="hidden p-3 mb-6 rounded-lg text-sm transition-opacity duration-300" role="alert"></div>
+
+        <!-- Authentication and User Status -->
+        <div id="auth-area" class="flex justify-between items-center mb-6 p-4 border rounded-lg bg-gh-bg">
+            <div id="user-profile" class="hidden items-center space-x-3">
+                <img id="user-avatar" class="w-8 h-8 rounded-full" src="" alt="User Avatar" onerror="this.onerror=null;this.src='https://placehold.co/32x32/cccccc/333333?text=User'">
+                <span id="user-name" class="font-semibold text-gh-dark"></span>
+            </div>
+            <button id="auth-button"
+                    class="w-full sm:w-auto flex items-center justify-center space-x-2 px-4 py-2 bg-gh-blue text-white font-semibold rounded-lg shadow-md hover:bg-opacity-90 transition duration-150">
+                <i data-feather="github" class="w-5 h-5"></i>
+                <span id="auth-button-text">Sign in with GitHub</span>
+            </button>
+        </div>
+
+        <!-- Loading Spinner for Auth Check -->
+        <div id="loading-spinner" class="hidden text-center py-10 text-gh-blue">
+            <i data-feather="loader" class="w-8 h-8 animate-spin mx-auto mb-2"></i>
+            <p>Loading session...</p>
+        </div>
+
+        <!-- Issue Form -->
+        <form id="issue-form" class="space-y-6 hidden">
+            
+            <!-- Repository Input -->
+            <div>
+                <label for="repo-input" class="block text-sm font-medium text-gh-primary mb-1">Repository (Owner/Name) <span class="text-red-500">*</span></label>
+                <div class="relative">
+                    <input type="text" id="repo-input" placeholder="e.g., supabase/supabase" required
+                           class="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-gh-blue focus:border-gh-blue transition duration-150"
+                           aria-describedby="repo-help">
+                    <i data-feather="code" class="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                </div>
+                <p id="repo-help" class="mt-1 text-xs text-gray-500">Format: <code>owner/repository-name</code> (must be a repo you have access to)</p>
+            </div>
+
+            <!-- Title Input -->
+            <div>
+                <label for="title-input" class="block text-sm font-medium text-gh-primary mb-1">Issue Title <span class="text-red-500">*</span></label>
+                <div class="relative">
+                    <input type="text" id="title-input" placeholder="A concise summary of the bug or feature" required
+                           class="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-gh-blue focus:border-gh-blue transition duration-150">
+                    <i data-feather="tag" class="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                </div>
+            </div>
+
+            <!-- Body Input -->
+            <div>
+                <label for="body-input" class="block text-sm font-medium text-gh-primary mb-1">Issue Body / Description</label>
+                <div class="relative">
+                    <textarea id="body-input" rows="8" placeholder="Provide context, steps to reproduce, or detailed specifications. (Markdown is supported)"
+                              class="w-full p-3 pl-3 pr-3 border border-gray-300 rounded-lg focus:ring-gh-blue focus:border-gh-blue transition duration-150"></textarea>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="submit-button"
+                    class="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-gh-blue text-white font-semibold rounded-lg shadow-md hover:bg-opacity-90 transition duration-150 ease-in-out transform hover:scale-[1.005]">
+                <i data-feather="send" class="w-5 h-5"></i>
+                <span>Create Issue via API</span>
+            </button>
+        </form>
+
+        <!-- Footer -->
+        <footer class="mt-8 pt-6 border-t border-gray-100 text-center text-xs text-gray-400">
+            <p>Powered by Supabase and the GitHub API.</p>
+        </footer>
+    </div>
+
+    <script type="module">
+        // Import Firebase modules (Mandatory for the environment)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // NOTE: Supabase is now loaded globally via a non-module script tag in the <head>.
+
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        getFirestore(app);
+
+        async function initializeAuth() {
+            if (typeof __initial_auth_token !== 'undefined') {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+        }
+        initializeAuth();
+
+        const SUPABASE_URL = 'https://syczfzloslkszzpuvcre.supabase.co'; 
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5Y3pmemxvc2xrc3p6cHV2Y3JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2MTQwMjUsImV4cCI6MjA4MTE5MDAyNX0.vy8urIWxuwuaEYCjfHiWQUyBYKDXdhGiK8X4x_bafrw';
+        
+        const form = document.getElementById('issue-form');
+        const repoInput = document.getElementById('repo-input');
+        const titleInput = document.getElementById('title-input');
+        const bodyInput = document.getElementById('body-input');
+        const notificationBox = document.getElementById('notification-box');
+        const submitButton = document.getElementById('submit-button');
+        const authButton = document.getElementById('auth-button');
+        const userProfile = document.getElementById('user-profile');
+        const userAvatar = document.getElementById('user-avatar');
+        const userName = document.getElementById('user-name');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        
+        let githubAccessToken = null;
+
+        function showNotification(message, type = 'error') {
+            if (!notificationBox) {
+                console.warn("Notification box not available, logging message instead:", message);
+                return;
+            }
+
+            notificationBox.textContent = message;
+            notificationBox.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700', 'bg-yellow-100', 'text-yellow-700');
+            
+            if (type === 'success') {
+                notificationBox.classList.add('bg-green-100', 'text-green-700');
+            } else if (type === 'warning') {
+                notificationBox.classList.add('bg-yellow-100', 'text-yellow-700');
+            } else {
+                notificationBox.classList.add('bg-red-100', 'text-red-700');
+            }
+
+            setTimeout(() => {
+                notificationBox.classList.add('hidden');
+            }, 7000);
+        }
+
+        let supabase;
+        try {
+            // Access the global 'supabase' object created by the UMD script and call its createClient method.
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch (e) {
+            console.error(e.message);
+            showNotification(`Setup Error: Supabase client failed to initialize.`, 'error');
+        }
+
+
+        function updateUI(session) {
+            loadingSpinner.classList.add('hidden');
+
+            if (session && session.provider_token) {
+                githubAccessToken = session.provider_token;
+                userProfile.classList.remove('hidden');
+                userProfile.classList.add('flex');
+                form.classList.remove('hidden');
+
+                const user = session.user;
+                const userMetadata = user.user_metadata || {};
+                
+                userName.textContent = userMetadata.user_name || user.email || 'GitHub User';
+                userAvatar.src = userMetadata.avatar_url || 'https://placehold.co/32x32/cccccc/333333?text=U';
+                
+                authButton.textContent = 'Sign Out';
+                authButton.classList.remove('bg-gh-blue');
+                authButton.classList.add('bg-red-500');
+
+                showNotification(`Logged in as ${userName.textContent}. You can now create issues.`, 'success');
+
+            } else {
+                githubAccessToken = null;
+                userProfile.classList.add('hidden');
+                userProfile.classList.remove('flex');
+                form.classList.add('hidden');
+                
+                authButton.innerHTML = `<i data-feather="github" class="w-5 h-5"></i><span id="auth-button-text">Sign in with GitHub</span>`;
+                authButton.classList.remove('bg-red-500');
+                authButton.classList.add('bg-gh-blue');
+                
+                showNotification('Please sign in with GitHub to create issues via the API.', 'warning');
+            }
+            feather.replace();
+        }
+
+        async function signInWithGitHub() {
+            if (!supabase) return;
+
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'github',
+                options: {
+                    scopes: 'public_repo, write:issue', 
+                }
+            });
+
+            if (error) {
+                console.error('GitHub Sign In Error:', error);
+                showNotification(`Sign In Failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function signOut() {
+            if (!supabase) return;
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+                console.error('Sign Out Error:', error);
+                showNotification(`Sign Out Failed: ${error.message}`, 'error');
+            } else {
+                updateUI(null);
+            }
+        }
+
+        async function createIssue(event) {
+            event.preventDefault();
+            
+            if (!githubAccessToken) {
+                showNotification('You must be signed in to create an issue.', 'error');
+                return;
+            }
+
+            const repoValue = repoInput.value.trim();
+            const titleValue = titleInput.value.trim();
+            const bodyValue = bodyInput.value.trim();
+            
+            if (!repoValue || !titleValue || !repoValue.includes('/')) {
+                showNotification('Please fill in the repository (owner/name) and title correctly.', 'error');
+                return;
+            }
+
+            const [owner, repo] = repoValue.split('/');
+
+            submitButton.disabled = true;
+            submitButton.innerHTML = `<i data-feather="loader" class="w-5 h-5 animate-spin"></i><span>Creating Issue...</span>`;
+            feather.replace();
+
+            const issueData = {
+                title: titleValue,
+                body: bodyValue,
+            };
+
+            const apiUrl = `https://api.github.com/repos/${owner}/${repo}/issues`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${githubAccessToken}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
+                    body: JSON.stringify(issueData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showNotification(`Issue #${data.number} created successfully in ${repoValue}!`, 'success');
+                    
+                    titleInput.value = '';
+                    bodyInput.value = '';
+
+                    window.open(data.html_url, '_blank');
+                    
+                } else {
+                    let errorMessage = data.message || `Failed to create issue. Status: ${response.status}`;
+                    if (data.documentation_url) {
+                        errorMessage += ` Check logs for details.`;
+                    }
+                    showNotification(errorMessage, 'error');
+                    console.error('GitHub API Error Details:', data);
+                }
+
+            } catch (error) {
+                showNotification('A network error occurred while trying to reach GitHub.', 'error');
+                console.error('Fetch Error:', error);
+            } finally {
+                submitButton.disabled = false;
+                submitButton.innerHTML = `<i data-feather="send" class="w-5 h-5"></i><span>Create Issue via API</span>`;
+                feather.replace();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            feather.replace();
+            loadingSpinner.classList.remove('hidden');
+
+            authButton.addEventListener('click', () => {
+                if (githubAccessToken) {
+                    signOut();
+                } else {
+                    signInWithGitHub();
+                }
+            });
+
+            form.addEventListener('submit', createIssue);
+            
+            if (supabase) {
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                    updateUI(session);
+                });
+
+                supabase.auth.onAuthStateChange((event, session) => {
+                    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                        updateUI(session);
+                    } else if (event === 'SIGNED_OUT') {
+                        updateUI(null);
+                    }
+                });
+            } else {
+                 loadingSpinner.classList.add('hidden');
+                 updateUI(null);
+            }
+        });
+    </script>
+</body>
+</html>
