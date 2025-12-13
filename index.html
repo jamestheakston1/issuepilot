@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IssuePilot - Create GitHub Issues Instantly</title>
-    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Configure Tailwind to use Inter font -->
     <script>
         tailwind.config = {
             theme: {
@@ -24,9 +22,7 @@
             }
         }
     </script>
-    <!-- Load Feather Icons -->
     <script src="https://unpkg.com/feather-icons"></script>
-    <!-- Load Supabase Client using the UMD bundle, which creates a global 'supabase' object -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -62,7 +58,6 @@
 
     <div class="w-full max-w-2xl bg-white shadow-xl rounded-xl p-6 sm:p-10 mt-8">
         
-        <!-- Header -->
         <header class="text-center mb-8">
             <div class="flex items-center justify-center space-x-2 text-gh-primary">
                 <i data-feather="github" class="w-8 h-8 text-gh-dark"></i>
@@ -71,11 +66,8 @@
             <p class="text-gray-500 mt-2 text-lg">Create GitHub Issues instantly using the API.</p>
         </header>
 
-        <!-- Notification Area -->
         <div id="notification-box" class="hidden p-3 mb-6 rounded-lg text-sm transition-opacity duration-300" role="alert"></div>
 
-        <!-- Authentication and User Status -->
-        <!-- justify-center for sign-out state (centered button) -->
         <div id="auth-area" class="flex justify-center items-center mb-6 p-4 border rounded-lg bg-gh-bg">
             <div id="user-profile" class="hidden items-center space-x-3">
                 <img id="user-avatar" class="w-8 h-8 rounded-full" src="" alt="User Avatar" onerror="this.onerror=null;this.src='https://placehold.co/32x32/cccccc/333333?text=User'">
@@ -88,16 +80,13 @@
             </button>
         </div>
 
-        <!-- Loading Spinner for Auth Check -->
         <div id="loading-spinner" class="hidden text-center py-10 text-gh-blue">
             <i data-feather="loader" class="w-8 h-8 animate-spin mx-auto mb-2"></i>
             <p>Loading session...</p>
         </div>
 
-        <!-- Main Content Area -->
         <div id="main-content-area" class="mt-6">
             
-            <!-- Issues List View (Initially hidden until logged in) -->
             <div id="issues-list-view" class="hidden space-y-4">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-2xl font-semibold text-gh-primary">Your Created Issues</h2>
@@ -118,14 +107,11 @@
                 </div>
                 
                 <div id="issues-container" class="space-y-3">
-                    <!-- Issues will be rendered here -->
                 </div>
             </div>
 
-            <!-- Issue Creation Form (Initially hidden until logged in) -->
             <form id="issue-form" class="space-y-6 hidden">
                 
-                <!-- Repository Input with Autocomplete Dropdown -->
                 <div id="repo-input-group">
                     <label for="repo-input" class="block text-sm font-medium text-gh-primary mb-1">Repository (Owner/Name) <span class="text-red-500">*</span></label>
                     <div class="relative">
@@ -134,15 +120,12 @@
                                aria-describedby="repo-help">
                         <i data-feather="code" class="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                         
-                        <!-- Suggestion Dropdown Container -->
                         <div id="repo-suggestions-container" class="absolute z-10 w-full mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg hidden">
-                            <!-- Suggestions will be inserted here -->
                         </div>
                     </div>
                     <p id="repo-help" class="mt-1 text-xs text-gray-500">Format: <code>owner/repository-name</code> (must be a repo you have access to)</p>
                 </div>
 
-                <!-- Title Input -->
                 <div>
                     <label for="title-input" class="block text-sm font-medium text-gh-primary mb-1">Issue Title <span class="text-red-500">*</span></label>
                     <div class="relative">
@@ -152,7 +135,6 @@
                     </div>
                 </div>
 
-                <!-- Body Input -->
                 <div>
                     <label for="body-input" class="block text-sm font-medium text-gh-primary mb-1">Issue Body / Description</label>
                     <div class="relative">
@@ -161,7 +143,6 @@
                     </div>
                 </div>
 
-                <!-- Submit Button -->
                 <button type="submit" id="submit-button"
                         class="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-gh-blue text-white font-semibold rounded-lg shadow-md hover:bg-opacity-90 transition duration-150 ease-in-out transform hover:scale-[1.005]">
                     <i data-feather="send" class="w-5 h-5"></i>
@@ -170,7 +151,6 @@
             </form>
         </div>
 
-        <!-- Footer -->
         <footer class="mt-8 pt-6 border-t border-gray-100 text-center text-xs text-gray-400">
             <p>Powered by Supabase and the GitHub API.</p>
         </footer>
@@ -206,7 +186,6 @@
 
         function showNotification(message, type = 'error') {
             if (!notificationBox) {
-                console.warn("Notification box not available, logging message instead:", message);
                 return;
             }
 
@@ -230,13 +209,9 @@
         try {
             supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         } catch (e) {
-            console.error(e.message);
             showNotification(`Setup Error: Supabase client failed to initialize.`, 'error');
         }
 
-        /**
-         * Debounce utility function.
-         */
         function debounce(func, timeout = 400) {
             let timer;
             return (...args) => {
@@ -257,7 +232,7 @@
 
         function handleSuggestionClick(repoFullName) {
             repoInput.value = repoFullName;
-            renderRepoSuggestions([]); // Clear suggestions after selection
+            renderRepoSuggestions([]);
         }
 
         function displayRepoMessage(message, type = 'info') {
@@ -288,7 +263,6 @@
             repoSuggestionsContainer.innerHTML = '';
 
             if (!repos || repos.length === 0) {
-                // This case should be handled by the caller (fetchRepoSuggestions) for specific messages
                 repoSuggestionsContainer.classList.add('hidden');
                 return;
             }
@@ -305,7 +279,7 @@
                     </div>
                     <i data-feather="star" class="w-4 h-4 text-yellow-500 ml-2"></i>
                 `;
-                item.addEventListener('mousedown', (e) => { // Use mousedown to prevent blur from firing first
+                item.addEventListener('mousedown', (e) => {
                     e.preventDefault(); 
                     handleSuggestionClick(repoFullName);
                 });
@@ -319,7 +293,6 @@
         async function fetchRepoSuggestions(query) {
             if (query.length < 3) return;
 
-            // Show loading state
             displayRepoMessage('Searching repositories...', 'info');
 
             const searchQuery = `${query} in:full_name,description`;
@@ -338,7 +311,6 @@
                     if (data.items.length > 0) {
                         renderRepoSuggestions(data.items);
                     } else {
-                        // Show "No results" message
                         displayRepoMessage(`No results found for "${query}"`, 'info');
                     }
                 } else {
@@ -347,15 +319,13 @@
                          errorMessage = 'Rate limit exceeded for repository search. Please try again soon or sign in.';
                     }
                     showNotification(errorMessage, 'warning');
-                    renderRepoSuggestions(null); // Clear suggestions on error
+                    renderRepoSuggestions(null);
                 }
             } catch (error) {
-                console.error('Fetch Repo Suggestions Error:', error);
-                renderRepoSuggestions(null); // Clear suggestions on network error
+                renderRepoSuggestions(null);
             }
         }
         
-        // Debounced wrapper for the fetch function
         const debouncedFetchRepos = debounce((query) => {
             fetchRepoSuggestions(query);
         }, 400);
@@ -404,9 +374,11 @@
             issuesLoading.classList.remove('hidden');
             feather.replace();
 
-            // Search query: issues created by the user, sorted by update date, showing all states
             const query = `author:${username} is:issue state:all`; 
             const apiUrl = `https://api.github.com/search/issues?q=${encodeURIComponent(query)}&sort=updated&order=desc`;
+            
+            console.log("Fetching issues for user:", username);
+            console.log("API URL:", apiUrl);
 
             try {
                 const response = await fetch(apiUrl, {
@@ -415,12 +387,13 @@
                         'Accept': 'application/vnd.github.v3+json'
                     }
                 });
-
+                
                 if (response.ok) {
                     const data = await response.json();
                     renderIssues(data.items);
                 } else {
                     const errorData = await response.json();
+                    console.error('GitHub API Response Error:', response.status, errorData);
                     showNotification(`Failed to fetch issues: ${errorData.message || response.statusText}`, 'error');
                     renderIssues(null); 
                 }
@@ -443,7 +416,6 @@
                 const userMetadata = user.user_metadata || {};
                 githubUsername = userMetadata.user_name;
 
-                // Adjust layout for signed-in state: Profile left, Sign Out button right
                 authArea.classList.remove('justify-center');
                 authArea.classList.add('justify-between');
                 
@@ -459,7 +431,6 @@
 
                 showNotification(`Logged in as ${userName.textContent}. Loading your issue history...`, 'success');
                 
-                // Show the list view and fetch issues upon successful login
                 switchView('list');
                 fetchUserIssues(githubUsername);
 
@@ -468,7 +439,6 @@
                 githubAccessToken = null;
                 githubUsername = null;
 
-                // Adjust layout for signed-out state: Button centered
                 authArea.classList.remove('justify-between');
                 authArea.classList.add('justify-center');
 
@@ -492,13 +462,11 @@
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'github',
                 options: {
-                    // Requires 'public_repo' and 'write:issue' scope to create issues
                     scopes: 'public_repo, write:issue', 
                 }
             });
 
             if (error) {
-                console.error('GitHub Sign In Error:', error);
                 showNotification(`Sign In Failed: ${error.message}`, 'error');
             }
         }
@@ -507,7 +475,6 @@
             if (!supabase) return;
             const { error } = await supabase.auth.signOut();
             if (error) {
-                console.error('Sign Out Error:', error);
                 showNotification(`Sign Out Failed: ${error.message}`, 'error');
             } else {
                 updateUI(null);
@@ -560,11 +527,9 @@
                 if (response.ok) {
                     showNotification(`Issue #${data.number} created successfully in ${repoValue}! Now showing history.`, 'success');
                     
-                    // Clear the form fields
                     titleInput.value = '';
                     bodyInput.value = '';
 
-                    // Switch back to the list view and refresh the issues
                     switchView('list');
                     fetchUserIssues(githubUsername);
                     
@@ -574,12 +539,10 @@
                         errorMessage += ` Check logs for details.`;
                     }
                     showNotification(errorMessage, 'error');
-                    console.error('GitHub API Error Details:', data);
                 }
 
             } catch (error) {
                 showNotification('A network error occurred while trying to reach GitHub.', 'error');
-                console.error('Fetch Error:', error);
             } finally {
                 submitButton.disabled = false;
                 submitButton.innerHTML = `<i data-feather="send" class="w-5 h-5"></i><span>Create Issue via API</span>`;
@@ -605,36 +568,30 @@
 
             form.addEventListener('submit', createIssue);
             
-            // Autocomplete setup
             repoInput.addEventListener('input', (e) => {
                 const query = e.target.value.trim();
                 if (query.length === 0) {
-                    renderRepoSuggestions([]); // Hide suggestions
+                    renderRepoSuggestions([]);
                 } else if (query.length < 3) {
-                    // Show "Start typing more characters..." message
                     displayRepoMessage('Start typing more characters (at least 3) to search.', 'warning');
                 } else {
                     debouncedFetchRepos(query);
                 }
             });
 
-            // Hide suggestions when focus is lost (delaying to allow click on suggestion)
             repoInput.addEventListener('blur', () => {
                 setTimeout(() => {
                     repoSuggestionsContainer.classList.add('hidden');
                 }, 200);
             });
 
-            // Show suggestions again on focus if there's already text and suggestions are available
             repoInput.addEventListener('focus', (e) => {
                 if (repoSuggestionsContainer.children.length > 0 && e.target.value.trim().length >= 3 && repoSuggestionsContainer.children[0].classList.contains('p-3')) {
-                    // Only show if there are actual repo results, not just messages
                     repoSuggestionsContainer.classList.remove('hidden');
                 }
             });
 
 
-            // Supabase Auth Initialization
             if (supabase) {
                 supabase.auth.getSession().then(({ data: { session } }) => {
                     updateUI(session);
