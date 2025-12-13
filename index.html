@@ -52,16 +52,6 @@
         .issue-card:hover {
             box-shadow: 0 1px 4px rgba(27, 31, 35, 0.1);
         }
-        /* Custom CSS for PiP Guide Arrow Animation */
-        @keyframes arrow-bounce {
-            0%, 100% { transform: translateY(0) scale(1); opacity: 1; }
-            50% { transform: translateY(-10px) scale(1.05); opacity: 0.9; }
-        }
-        #pip-arrow {
-            animation: arrow-bounce 1s infinite ease-in-out;
-            pointer-events: none; /* Ensure clicks pass through */
-            z-index: 1;
-        }
     </style>
 </head>
 <body class="min-h-screen flex items-start justify-center p-4 sm:p-8">
@@ -83,15 +73,12 @@
                 <img id="user-avatar" class="w-8 h-8 rounded-full" src="" alt="User Avatar" onerror="this.onerror=null;this.src='https://placehold.co/32x32/cccccc/333333?text=User'">
                 <span id="user-name" class="font-semibold text-gh-dark"></span>
 
-                <!-- Kebab Menu for Account Management -->
                 <div id="kebab-menu" class="relative ml-3 sm:ml-4">
                     <button id="kebab-button" class="p-1 rounded-full hover:bg-gray-200 transition duration-150" aria-label="Account options">
                         <i data-feather="more-vertical" class="w-5 h-5 text-gray-500"></i>
                     </button>
 
-                    <!-- Dropdown Content -->
                     <div id="dropdown-menu" class="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-xl z-20 hidden origin-top-right">
-                        <!-- Only one option: Delete Account -->
                         <button id="delete-account-button"
                                 class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg flex items-center space-x-2 transition duration-150">
                             <i data-feather="trash-2" class="w-4 h-4"></i>
@@ -183,27 +170,27 @@
         </footer>
     </div>
     
-    <!-- Hidden Video Element for PiP Tutorial -->
     <video id="pip-video" src="assets/deletetutorial.mp4" style="display: none;"></video>
     
-    <!-- PiP Permission Guide Overlay (The grey background with animated arrow) -->
-    <div id="pip-guide-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden flex items-start justify-center pt-20">
-        <div class="absolute w-full h-full pointer-events-none">
-             <!-- Animated Arrow pointing roughly top-left (where many browser prompts appear) -->
-            <svg id="pip-arrow" class="absolute w-12 h-12 text-white" style="left: 5%; top: 5%;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M14 6L21 6M21 6L21 13M21 6L3 21" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-        </div>
-        
-        <div id="pip-guide-box" class="bg-white p-6 rounded-xl shadow-2xl max-w-sm mx-4 sm:mx-0 text-center relative z-20">
-            <h3 class="text-xl font-bold mb-3 text-gh-dark flex items-center justify-center space-x-2">
-                 <i data-feather="monitor" class="w-6 h-6 text-gh-blue"></i>
-                 <span>Video Tutorial Ready</span>
+    <div id="pip-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full relative">
+            <h3 class="text-xl font-bold mb-3 text-gh-dark flex items-center space-x-2 border-b pb-2">
+                 <i data-feather="trash-2" class="w-6 h-6 text-red-600"></i>
+                 <span>Confirm Account Deletion</span>
             </h3>
-            <p class="text-gray-600 mb-6">We will open your GitHub settings and a video tutorial simultaneously. Please **allow** the Picture-in-Picture request (often near your address bar) for the tutorial to play.</p>
-            <button id="guide-continue-button" class="w-full px-4 py-2 bg-gh-blue text-white font-semibold rounded-lg hover:bg-opacity-90 transition">
-                I Understand, Continue
-            </button>
+            <p class="text-gray-700 mb-4">You are about to revoke this app's access on GitHub and sign out.</p>
+            
+            <p class="text-gray-600 mb-6 font-semibold">Do you want a video tutorial to guide you through revoking access in Picture-in-Picture mode?</p>
+            
+            <div class="space-y-3">
+                <button id="modal-yes-button" class="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-gh-blue text-white font-semibold rounded-lg hover:bg-opacity-90 transition">
+                    <i data-feather="monitor" class="w-5 h-5"></i>
+                    <span>Yes (Recommended, PiP Tutorial)</span>
+                </button>
+                <button id="modal-no-button" class="w-full px-4 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition">
+                    <span>No (Open GitHub Directly)</span>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -236,9 +223,13 @@
         const dropdownMenu = document.getElementById('dropdown-menu');
         const deleteAccountButton = document.getElementById('delete-account-button');
         const pipVideo = document.getElementById('pip-video');
-        const guideOverlay = document.getElementById('pip-guide-overlay');
-        const guideContinueButton = document.getElementById('guide-continue-button');
         
+        const pipModal = document.getElementById('pip-modal');
+        const modalYesButton = document.getElementById('modal-yes-button');
+        const modalNoButton = document.getElementById('modal-no-button');
+        
+        const GITHUB_REVOKE_URL = 'https://github.com/settings/connections/applications/Ov23lie813N9LAMIwrVR';
+
         let githubAccessToken = null;
         let githubUsername = null;
         const signInText = 'Connect with GitHub';
@@ -433,13 +424,9 @@
             issuesLoading.classList.remove('hidden');
             feather.replace();
 
-            // Query only issues created by the user and containing the app signature
             const query = `author:${username} is:issue state:all in:body "${APP_SIGNATURE}"`; 
             const apiUrl = `https://api.github.com/search/issues?q=${encodeURIComponent(query)}&sort=updated&order=desc`;
             
-            console.log("Fetching issues for user:", username);
-            console.log("API URL:", apiUrl);
-
             try {
                 const response = await fetch(apiUrl, {
                     headers: {
@@ -453,13 +440,11 @@
                     renderIssues(data.items);
                 } else {
                     const errorData = await response.json();
-                    console.error('GitHub API Response Error:', response.status, errorData);
                     showNotification(`Failed to fetch issues: ${errorData.message || response.statusText}`, 'error');
                     renderIssues(null); 
                 }
             } catch (error) {
                 showNotification('Network error while fetching issues.', 'error');
-                console.error('Fetch Issues Error:', error);
                 renderIssues(null);
             } finally {
                 issuesLoading.classList.add('hidden');
@@ -546,49 +531,45 @@
                 updateUI(null);
             }
         }
+        
+        function handleDeleteAccount() {
+            dropdownMenu.classList.add('hidden');
+            pipModal.classList.remove('hidden');
+        }
 
-        async function proceedToDeleteAccount() {
-            guideOverlay.classList.add('hidden');
-            
-            // 1. Open GitHub URL in new tab
-            window.open('https://github.com/settings/connections/applications/Ov23lie813N9LAMIwrVR', '_blank');
+        async function handleModalYes() {
+            pipModal.classList.add('hidden');
 
-            // 2. Play video in PiP (This is where the user gets prompted)
             if ('pictureInPictureEnabled' in document && pipVideo) {
                 try {
                     pipVideo.muted = true;
-                    // Attempt play first, then request PiP (user gesture requirement)
                     await pipVideo.play(); 
                     await pipVideo.requestPictureInPicture();
-                    showNotification('GitHub settings opened. Video tutorial for revoking access is playing in Picture-in-Picture mode.', 'warning');
+                    showNotification('Video tutorial requested. Please grant Picture-in-Picture permission (near address bar).', 'warning');
+
+                    // Wait 1 second before opening GitHub URL
+                    setTimeout(async () => {
+                        window.open(GITHUB_REVOKE_URL, '_blank');
+                        showNotification('GitHub settings opened in new tab. Follow the video guide.', 'warning');
+                        await signOut();
+                    }, 1000); 
+
                 } catch (error) {
                     console.error('PiP failed or video playback was blocked:', error);
-                    // PiP failure likely means the user denied the prompt, or it was auto-blocked.
-                    showNotification('GitHub settings opened. Could not start Picture-in-Picture video. Please manually revoke access in the new tab.', 'warning');
+                    showNotification('Could not start Picture-in-Picture. Opening GitHub settings directly.', 'warning');
+                    handleModalNo();
                 }
             } else {
-                showNotification('GitHub settings opened. Your browser does not support Picture-in-Picture. Please manually revoke access in the new tab.', 'warning');
+                showNotification('Your browser does not support Picture-in-Picture. Opening GitHub settings directly.', 'warning');
+                handleModalNo();
             }
-
-            // 3. Sign out locally
-            await signOut();
         }
 
-        async function handleDeleteAccount() {
-            dropdownMenu.classList.add('hidden');
-
-            // Check if PiP is supported at all
-            if (!('pictureInPictureEnabled' in document) || !document.pictureInPictureEnabled || !pipVideo) {
-                window.open('https://github.com/settings/connections/applications/Ov23lie813N9LAMIwrVR', '_blank');
-                showNotification('GitHub settings opened. Your browser does not support Picture-in-Picture. Please manually revoke access in the new tab.', 'warning');
-                await signOut();
-                return;
-            }
-
-            // If PiP is supported, show the instruction guide first.
-            guideOverlay.classList.remove('hidden');
-            // Ensure icons are rendered in the guide
-            feather.replace();
+        async function handleModalNo() {
+            pipModal.classList.add('hidden');
+            window.open(GITHUB_REVOKE_URL, '_blank');
+            showNotification('GitHub settings opened in new tab. Please manually revoke access.', 'warning');
+            await signOut();
         }
 
         async function createIssue(event) {
@@ -614,7 +595,6 @@
             submitButton.innerHTML = `<i data-feather="loader" class="w-5 h-5 animate-spin"></i><span>Creating Issue...</span>`;
             feather.replace();
 
-            // Append unique signature to the body
             bodyValue = bodyValue + '\n\n' + APP_SIGNATURE;
 
             const issueData = {
@@ -681,7 +661,8 @@
             });
             
             deleteAccountButton.addEventListener('click', handleDeleteAccount);
-            guideContinueButton.addEventListener('click', proceedToDeleteAccount); // New handler
+            modalYesButton.addEventListener('click', handleModalYes);
+            modalNoButton.addEventListener('click', handleModalNo);
 
             document.addEventListener('click', (e) => {
                 if (!kebabMenu.contains(e.target)) {
