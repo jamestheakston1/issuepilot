@@ -52,6 +52,16 @@
         .issue-card:hover {
             box-shadow: 0 1px 4px rgba(27, 31, 35, 0.1);
         }
+        /* Custom CSS for PiP Guide Arrow Animation */
+        @keyframes arrow-bounce {
+            0%, 100% { transform: translateY(0) scale(1); opacity: 1; }
+            50% { transform: translateY(-10px) scale(1.05); opacity: 0.9; }
+        }
+        #pip-arrow {
+            animation: arrow-bounce 1s infinite ease-in-out;
+            pointer-events: none; /* Ensure clicks pass through */
+            z-index: 1;
+        }
     </style>
 </head>
 <body class="min-h-screen flex items-start justify-center p-4 sm:p-8">
@@ -175,6 +185,27 @@
     
     <!-- Hidden Video Element for PiP Tutorial -->
     <video id="pip-video" src="assets/deletetutorial.mp4" style="display: none;"></video>
+    
+    <!-- PiP Permission Guide Overlay (The grey background with animated arrow) -->
+    <div id="pip-guide-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden flex items-start justify-center pt-20">
+        <div class="absolute w-full h-full pointer-events-none">
+             <!-- Animated Arrow pointing roughly top-left (where many browser prompts appear) -->
+            <svg id="pip-arrow" class="absolute w-12 h-12 text-white" style="left: 5%; top: 5%;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 6L21 6M21 6L21 13M21 6L3 21" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </div>
+        
+        <div id="pip-guide-box" class="bg-white p-6 rounded-xl shadow-2xl max-w-sm mx-4 sm:mx-0 text-center relative z-20">
+            <h3 class="text-xl font-bold mb-3 text-gh-dark flex items-center justify-center space-x-2">
+                 <i data-feather="monitor" class="w-6 h-6 text-gh-blue"></i>
+                 <span>Video Tutorial Ready</span>
+            </h3>
+            <p class="text-gray-600 mb-6">We will open your GitHub settings and a video tutorial simultaneously. Please **allow** the Picture-in-Picture request (often near your address bar) for the tutorial to play.</p>
+            <button id="guide-continue-button" class="w-full px-4 py-2 bg-gh-blue text-white font-semibold rounded-lg hover:bg-opacity-90 transition">
+                I Understand, Continue
+            </button>
+        </div>
+    </div>
 
     <script type="module">
         
@@ -201,11 +232,12 @@
         const loadingSpinner = document.getElementById('loading-spinner');
         const authArea = document.getElementById('auth-area');
         
-        // New elements for the Kebab Menu
         const kebabButton = document.getElementById('kebab-button');
         const dropdownMenu = document.getElementById('dropdown-menu');
         const deleteAccountButton = document.getElementById('delete-account-button');
         const pipVideo = document.getElementById('pip-video');
+        const guideOverlay = document.getElementById('pip-guide-overlay');
+        const guideContinueButton = document.getElementById('guide-continue-button');
         
         let githubAccessToken = null;
         let githubUsername = null;
@@ -457,8 +489,6 @@
                 authButton.classList.remove('bg-red-500');
                 authButton.classList.add('bg-gh-blue', 'sm:text-white'); 
                 
-                // Hide the delete button from the old structure if it somehow persisted
-                // Since the HTML now uses the kebab menu, we just ensure the menu is visible in the profile.
                 kebabButton.classList.remove('hidden');
 
                 showNotification(`Logged in as ${userName.textContent}. Loading your issue history...`, 'success');
@@ -483,7 +513,6 @@
                 authButton.classList.remove('bg-red-500');
                 authButton.classList.add('bg-gh-blue');
                 
-                // Hide dropdown when logged out
                 dropdownMenu.classList.add('hidden');
                 
                 showNotification('Please sign in with GitHub to create issues via the API.', 'warning');
@@ -508,7 +537,6 @@
 
         async function signOut() {
             if (!supabase) return;
-            // Hide dropdown before signing out
             dropdownMenu.classList.add('hidden');
 
             const { error } = await supabase.auth.signOut();
@@ -519,30 +547,48 @@
             }
         }
 
-        async function handleDeleteAccount() {
-            dropdownMenu.classList.add('hidden');
-
+        async function proceedToDeleteAccount() {
+            guideOverlay.classList.add('hidden');
+            
             // 1. Open GitHub URL in new tab
             window.open('https://github.com/settings/connections/applications/Ov23lie813N9LAMIwrVR', '_blank');
 
-            // 2. Play video in PiP (Picture-in-Picture)
+            // 2. Play video in PiP (This is where the user gets prompted)
             if ('pictureInPictureEnabled' in document && pipVideo) {
                 try {
-                    // Mute and play video before trying to enter PiP
                     pipVideo.muted = true;
-                    pipVideo.play();
+                    // Attempt play first, then request PiP (user gesture requirement)
+                    await pipVideo.play(); 
                     await pipVideo.requestPictureInPicture();
                     showNotification('GitHub settings opened. Video tutorial for revoking access is playing in Picture-in-Picture mode.', 'warning');
                 } catch (error) {
                     console.error('PiP failed or video playback was blocked:', error);
-                    showNotification('GitHub settings opened. Could not play video in Picture-in-Picture. Please manually revoke access in the new tab.', 'warning');
+                    // PiP failure likely means the user denied the prompt, or it was auto-blocked.
+                    showNotification('GitHub settings opened. Could not start Picture-in-Picture video. Please manually revoke access in the new tab.', 'warning');
                 }
             } else {
-                showNotification('GitHub settings opened. Your browser does not support Picture-in-Picture for the tutorial video. Please manually revoke access in the new tab.', 'warning');
+                showNotification('GitHub settings opened. Your browser does not support Picture-in-Picture. Please manually revoke access in the new tab.', 'warning');
             }
 
             // 3. Sign out locally
             await signOut();
+        }
+
+        async function handleDeleteAccount() {
+            dropdownMenu.classList.add('hidden');
+
+            // Check if PiP is supported at all
+            if (!('pictureInPictureEnabled' in document) || !document.pictureInPictureEnabled || !pipVideo) {
+                window.open('https://github.com/settings/connections/applications/Ov23lie813N9LAMIwrVR', '_blank');
+                showNotification('GitHub settings opened. Your browser does not support Picture-in-Picture. Please manually revoke access in the new tab.', 'warning');
+                await signOut();
+                return;
+            }
+
+            // If PiP is supported, show the instruction guide first.
+            guideOverlay.classList.remove('hidden');
+            // Ensure icons are rendered in the guide
+            feather.replace();
         }
 
         async function createIssue(event) {
@@ -635,6 +681,7 @@
             });
             
             deleteAccountButton.addEventListener('click', handleDeleteAccount);
+            guideContinueButton.addEventListener('click', proceedToDeleteAccount); // New handler
 
             document.addEventListener('click', (e) => {
                 if (!kebabMenu.contains(e.target)) {
