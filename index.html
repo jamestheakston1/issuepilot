@@ -156,11 +156,9 @@
                         <textarea id="body-input" rows="8" placeholder="Provide context, steps to reproduce, or detailed specifications. (Markdown is supported)"
                                   class="w-full p-3 pl-3 pr-3 border border-gray-300 rounded-lg focus:ring-gh-blue focus:border-gh-blue transition duration-150"></textarea>
 
-                        <!-- Mention Suggestions Dropdown (Positioned absolutely below textarea) -->
                         <div id="mention-suggestions-container" class="absolute z-20 w-full top-full mt-1 max-h-40 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg hidden">
                         </div>
                     </div>
-                    <!-- Mention Button -->
                     <div class="mt-2 flex justify-between items-center">
                         <p class="text-xs text-gray-500">Use <code>@username</code> to mention people in the issue.</p>
                         <button type="button" id="mention-button"
@@ -171,7 +169,6 @@
                     </div>
                 </div>
                 
-                <!-- Image Attachment Input -->
                 <div class="border border-dashed border-gray-300 p-4 rounded-lg bg-gray-50">
                     <label for="image-upload" class="block text-sm font-medium text-gh-primary mb-2 flex items-center space-x-2">
                         <i data-feather="image" class="w-4 h-4 text-gh-blue"></i>
@@ -187,7 +184,6 @@
                     <p class="mt-2 text-xs text-gray-500">Note: The image is converted to a large Base64 string and appended to the issue description. Max 5MB file size.</p>
                 </div>
 
-                <!-- Labels/Tags Input -->
                 <div>
                     <label for="labels-input" class="block text-sm font-medium text-gh-primary mb-1">Labels (e.g., bug, enhancement, priority:high)</label>
                     <div class="relative">
@@ -197,7 +193,6 @@
                     </div>
                 </div>
 
-                <!-- Assignees Input -->
                 <div>
                     <label for="assignees-input" class="block text-sm font-medium text-gh-primary mb-1">Assignees (GitHub Usernames)</label>
                     <div class="relative">
@@ -207,7 +202,6 @@
                     </div>
                 </div>
 
-                <!-- Milestone Input (Milestone Number) -->
                 <div>
                     <label for="milestone-input" class="block text-sm font-medium text-gh-primary mb-1">Milestone (Number ID)</label>
                     <div class="relative">
@@ -289,16 +283,13 @@
         const modalYesButton = document.getElementById('modal-yes-button');
         const modalNoButton = document.getElementById('modal-no-button');
         
-        // Fix for ReferenceError: kebabMenu is not defined
         const kebabMenu = document.getElementById('kebab-menu'); 
         
-        // Issue Metadata Fields
         const imageUpload = document.getElementById('image-upload');
         const labelsInput = document.getElementById('labels-input');
         const assigneesInput = document.getElementById('assignees-input');
         const milestoneInput = document.getElementById('milestone-input');
         
-        // Mention feature elements and state
         const mentionButton = document.getElementById('mention-button');
         const mentionSuggestionsContainer = document.getElementById('mention-suggestions-container');
         let currentMentionQuery = '';
@@ -331,12 +322,8 @@
             }, 7000);
         }
 
-        let supabase;
-        try {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        } catch (e) {
-            showNotification(`Setup Error: Supabase client failed to initialize.`, 'error');
-        }
+        // Initialize Supabase client immediately
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         function debounce(func, timeout = 400) {
             let timer;
@@ -419,7 +406,6 @@
         async function fetchRepoSuggestions(query) {
             if (query.length < 3) return;
 
-            // Explicitly check for token to avoid unnecessary 401 on search API if unauthorized
             if (!githubAccessToken) {
                 displayRepoMessage('Please sign in to search for repositories and improve rate limits.', 'warning');
                 return;
@@ -590,8 +576,6 @@
         }
 
         async function signInWithGitHub() {
-            if (!supabase) return;
-
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'github',
                 options: {
@@ -605,7 +589,6 @@
         }
 
         async function signOut() {
-            if (!supabase) return;
             dropdownMenu.classList.add('hidden');
 
             const { error } = await supabase.auth.signOut();
@@ -672,9 +655,9 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            if (file.size > 1024 * 1024 * 5) { // 5MB limit
+            if (file.size > 1024 * 1024 * 5) { 
                 showNotification('Image size exceeds 5MB. Please choose a smaller file.', 'error');
-                imageUpload.value = ''; // Clear the input
+                imageUpload.value = ''; 
                 return;
             }
 
@@ -684,7 +667,7 @@
                 const markdown = `\n\n![${file.name}](${base64Image})\n\n`;
                 
                 bodyInput.value += markdown;
-                imageUpload.value = ''; // Clear the input after processing
+                imageUpload.value = ''; 
                 showNotification(`Image "${file.name}" converted to Base64 and appended to description.`, 'success');
             };
             reader.onerror = () => {
@@ -692,8 +675,6 @@
             };
             reader.readAsDataURL(file);
         }
-
-        // --- Mention Autocomplete Logic ---
 
         function hideMentionDropdown() {
             mentionSuggestionsContainer.classList.add('hidden');
@@ -705,16 +686,12 @@
             const value = bodyInput.value;
             const caretPos = bodyInput.selectionStart;
 
-            // Find the last '@' that is not preceded by a non-whitespace character, and is followed by text
-            // (\s|^)@(\w*)  -> Group 2 is the query
             const mentionRegex = /(?:\s|^)@(\w*)/g;
             let match;
             let lastMatch = null;
             
             while ((match = mentionRegex.exec(value)) !== null) {
-                // Check if the match ends at or after the caret position
                 if (match.index + match[0].length >= caretPos) {
-                    // This is the trigger: the caret is inside or immediately after the match
                     lastMatch = match;
                     break; 
                 }
@@ -722,10 +699,8 @@
             
             if (lastMatch) {
                 const query = lastMatch[1];
-                // start index is the position of the '@' + 1
                 const start = lastMatch.index + lastMatch[0].indexOf('@') + 1; 
                 
-                // Only show if the caret is exactly inside the query part AND query length is 3+
                 if (caretPos >= start && caretPos <= start + query.length && query.length >= 3) {
                     currentMentionQuery = query;
                     mentionStartIndex = start;
@@ -743,7 +718,6 @@
                 return;
             }
 
-            // Search for users by username
             const apiUrl = `https://api.github.com/search/users?q=${encodeURIComponent(query)} in:login&per_page=5`;
             
             try {
@@ -771,14 +745,11 @@
             const textarea = bodyInput;
             const value = textarea.value;
             
-            // The position where the query *starts* in the original string
-            // We want to replace everything from the '@' symbol (start - 1) up to the caret position.
-            const mentionStart = mentionStartIndex - 1; // Position of '@'
+            const mentionStart = mentionStartIndex - 1; 
             const newText = value.substring(0, mentionStart) + `@${username} ` + value.substring(textarea.selectionEnd);
             
             textarea.value = newText;
             
-            // Set new caret position: end of the inserted username + space
             const newCaretPos = mentionStart + `@${username} `.length;
             textarea.selectionStart = newCaretPos;
             textarea.selectionEnd = newCaretPos;
@@ -802,7 +773,6 @@
                     <span class="font-medium text-sm">@${user.login}</span>
                 `;
                 
-                // Use mousedown to prevent blur event on textarea from firing first
                 item.addEventListener('mousedown', (e) => {
                     e.preventDefault(); 
                     handleMentionSelection(user.login);
@@ -812,9 +782,6 @@
 
             mentionSuggestionsContainer.classList.remove('hidden');
         }
-
-        // --- End Mention Autocomplete Logic ---
-
 
         async function createIssue(event) {
             event.preventDefault();
@@ -828,7 +795,6 @@
             const titleValue = titleInput.value.trim();
             let bodyValue = bodyInput.value.trim();
             
-            // New fields
             const labelsValue = labelsInput.value.trim();
             const assigneesValue = assigneesInput.value.trim();
             const milestoneValue = milestoneInput.value.trim();
@@ -851,17 +817,14 @@
                 body: bodyValue,
             };
             
-            // Process Labels
             if (labelsValue) {
                 issueData.labels = labelsValue.split(',').map(label => label.trim()).filter(label => label.length > 0);
             }
             
-            // Process Assignees
             if (assigneesValue) {
                 issueData.assignees = assigneesValue.split(',').map(assignee => assignee.trim()).filter(assignee => assignee.length > 0);
             }
 
-            // Process Milestone
             if (milestoneValue) {
                 const milestoneNumber = parseInt(milestoneValue, 10);
                 if (!isNaN(milestoneNumber) && milestoneNumber > 0) {
@@ -889,7 +852,6 @@
                 if (response.ok) {
                     showNotification(`Issue #${data.number} created successfully in ${repoValue}! Now showing history.`, 'success');
                     
-                    // Clear inputs
                     titleInput.value = '';
                     bodyInput.value = '';
                     labelsInput.value = '';
@@ -946,19 +908,16 @@
 
             bodyInput.addEventListener('input', checkMentionTrigger);
             bodyInput.addEventListener('keydown', (e) => {
-                // Hide dropdown on escape
                 if (e.key === 'Escape') {
                     hideMentionDropdown();
                 }
             });
-            // bodyInput blur is handled by a short timeout to allow mousedown on suggestions to register
             bodyInput.addEventListener('blur', () => {
                 setTimeout(hideMentionDropdown, 100); 
             });
 
 
             document.addEventListener('click', (e) => {
-                // Fix for ReferenceError: kebabMenu is not defined
                 if (kebabMenu && !kebabMenu.contains(e.target)) {
                     dropdownMenu.classList.add('hidden');
                 }
@@ -993,23 +952,17 @@
                 }
             });
 
+            supabase.auth.getSession().then(({ data: { session } }) => {
+                updateUI(session);
+            });
 
-            if (supabase) {
-                supabase.auth.getSession().then(({ data: { session } }) => {
+            supabase.auth.onAuthStateChange((event, session) => {
+                if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
                     updateUI(session);
-                });
-
-                supabase.auth.onAuthStateChange((event, session) => {
-                    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-                        updateUI(session);
-                    } else if (event === 'SIGNED_OUT') {
-                        updateUI(null);
-                    }
-                });
-            } else {
-                 loadingSpinner.classList.add('hidden');
-                 updateUI(null);
-            }
+                } else if (event === 'SIGNED_OUT') {
+                    updateUI(null);
+                }
+            });
         });
     </script>
 </body>
