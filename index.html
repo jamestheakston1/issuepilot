@@ -170,7 +170,7 @@
         </footer>
     </div>
     
-    <video id="pip-video" src="assets/deletetutorial.mp4" style="display: none;"></video>
+    <video id="pip-video" src="assets/deletetutorial.mp4" style="display: none;" loop></video>
     
     <div id="pip-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full relative">
@@ -547,7 +547,6 @@
                     await pipVideo.requestPictureInPicture();
                     showNotification('Video tutorial requested. Please grant Picture-in-Picture permission (near address bar).', 'warning');
 
-                    // Wait 1 second before opening GitHub URL
                     setTimeout(async () => {
                         window.open(GITHUB_REVOKE_URL, '_blank');
                         showNotification('GitHub settings opened in new tab. Follow the video guide.', 'warning');
