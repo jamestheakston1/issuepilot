@@ -44,6 +44,18 @@
         textarea::-webkit-scrollbar-track {
             background-color: #f3f4f6;
         }
+        .issue-card {
+            display: flex;
+            align-items: flex-start;
+            padding: 16px;
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            background-color: #ffffff;
+            transition: box-shadow 0.15s ease-in-out;
+        }
+        .issue-card:hover {
+            box-shadow: 0 1px 4px rgba(27, 31, 35, 0.1);
+        }
     </style>
 </head>
 <body class="min-h-screen flex items-start justify-center p-4 sm:p-8">
@@ -81,47 +93,81 @@
             <p>Loading session...</p>
         </div>
 
-        <!-- Issue Form -->
-        <form id="issue-form" class="space-y-6 hidden">
+        <!-- Main Content Area -->
+        <div id="main-content-area" class="mt-6">
             
-            <!-- Repository Input -->
-            <div>
-                <label for="repo-input" class="block text-sm font-medium text-gh-primary mb-1">Repository (Owner/Name) <span class="text-red-500">*</span></label>
-                <div class="relative">
-                    <input type="text" id="repo-input" placeholder="e.g., supabase/supabase" required
-                           class="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-gh-blue focus:border-gh-blue transition duration-150"
-                           aria-describedby="repo-help">
-                    <i data-feather="code" class="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+            <!-- Issues List View (Initially hidden until logged in) -->
+            <div id="issues-list-view" class="hidden space-y-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-semibold text-gh-primary">Your Created Issues</h2>
+                    <button id="new-issue-button"
+                            class="flex items-center space-x-2 px-3 py-2 bg-gh-blue text-white font-semibold rounded-lg shadow-md hover:bg-opacity-90 transition duration-150">
+                        <i data-feather="plus" class="w-5 h-5"></i>
+                        <span>Create New Issue</span>
+                    </button>
                 </div>
-                <p id="repo-help" class="mt-1 text-xs text-gray-500">Format: <code>owner/repository-name</code> (must be a repo you have access to)</p>
-            </div>
-
-            <!-- Title Input -->
-            <div>
-                <label for="title-input" class="block text-sm font-medium text-gh-primary mb-1">Issue Title <span class="text-red-500">*</span></label>
-                <div class="relative">
-                    <input type="text" id="title-input" placeholder="A concise summary of the bug or feature" required
-                           class="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-gh-blue focus:border-gh-blue transition duration-150">
-                    <i data-feather="tag" class="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                
+                <div id="issues-loading" class="text-center py-6 hidden">
+                    <i data-feather="loader" class="w-6 h-6 animate-spin mx-auto text-gray-500"></i>
+                    <p class="text-gray-500 mt-2">Loading your issues...</p>
                 </div>
-            </div>
-
-            <!-- Body Input -->
-            <div>
-                <label for="body-input" class="block text-sm font-medium text-gh-primary mb-1">Issue Body / Description</label>
-                <div class="relative">
-                    <textarea id="body-input" rows="8" placeholder="Provide context, steps to reproduce, or detailed specifications. (Markdown is supported)"
-                              class="w-full p-3 pl-3 pr-3 border border-gray-300 rounded-lg focus:ring-gh-blue focus:border-gh-blue transition duration-150"></textarea>
+                
+                <div id="issues-empty" class="text-center py-6 hidden">
+                    <p class="text-gray-500 italic">No issues found created by you in recent history.</p>
+                </div>
+                
+                <div id="issues-container" class="space-y-3">
+                    <!-- Issues will be rendered here -->
                 </div>
             </div>
 
-            <!-- Submit Button -->
-            <button type="submit" id="submit-button"
-                    class="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-gh-blue text-white font-semibold rounded-lg shadow-md hover:bg-opacity-90 transition duration-150 ease-in-out transform hover:scale-[1.005]">
-                <i data-feather="send" class="w-5 h-5"></i>
-                <span>Create Issue via API</span>
-            </button>
-        </form>
+            <!-- Issue Creation Form (Initially hidden until logged in) -->
+            <form id="issue-form" class="space-y-6 hidden">
+                
+                <!-- Repository Input with Autocomplete Dropdown -->
+                <div id="repo-input-group">
+                    <label for="repo-input" class="block text-sm font-medium text-gh-primary mb-1">Repository (Owner/Name) <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <input type="text" id="repo-input" placeholder="e.g., supabase/supabase" required
+                               class="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-gh-blue focus:border-gh-blue transition duration-150"
+                               aria-describedby="repo-help">
+                        <i data-feather="code" class="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        
+                        <!-- Suggestion Dropdown Container -->
+                        <div id="repo-suggestions-container" class="absolute z-10 w-full mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg hidden">
+                            <!-- Suggestions will be inserted here -->
+                        </div>
+                    </div>
+                    <p id="repo-help" class="mt-1 text-xs text-gray-500">Format: <code>owner/repository-name</code> (must be a repo you have access to)</p>
+                </div>
+
+                <!-- Title Input -->
+                <div>
+                    <label for="title-input" class="block text-sm font-medium text-gh-primary mb-1">Issue Title <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <input type="text" id="title-input" placeholder="A concise summary of the bug or feature" required
+                               class="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-gh-blue focus:border-gh-blue transition duration-150">
+                        <i data-feather="tag" class="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                </div>
+
+                <!-- Body Input -->
+                <div>
+                    <label for="body-input" class="block text-sm font-medium text-gh-primary mb-1">Issue Body / Description</label>
+                    <div class="relative">
+                        <textarea id="body-input" rows="8" placeholder="Provide context, steps to reproduce, or detailed specifications. (Markdown is supported)"
+                                  class="w-full p-3 pl-3 pr-3 border border-gray-300 rounded-lg focus:ring-gh-blue focus:border-gh-blue transition duration-150"></textarea>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" id="submit-button"
+                        class="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-gh-blue text-white font-semibold rounded-lg shadow-md hover:bg-opacity-90 transition duration-150 ease-in-out transform hover:scale-[1.005]">
+                    <i data-feather="send" class="w-5 h-5"></i>
+                    <span>Create Issue via API</span>
+                </button>
+            </form>
+        </div>
 
         <!-- Footer -->
         <footer class="mt-8 pt-6 border-t border-gray-100 text-center text-xs text-gray-400">
@@ -130,13 +176,18 @@
     </div>
 
     <script type="module">
-        // --- Firebase imports and initialization removed as requested ---
         
         const SUPABASE_URL = 'https://syczfzloslkszzpuvcre.supabase.co'; 
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5Y3pmemxvc2xrc3p6cHV2Y3JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2MTQwMjUsImV4cCI6MjA4MTE5MDAyNX0.vy8urIWxuwuaEYCjfHiWQUyBYKDXdhGiK8X4x_bafrw';
         
         const form = document.getElementById('issue-form');
+        const issuesListView = document.getElementById('issues-list-view');
+        const issuesContainer = document.getElementById('issues-container');
+        const newIssueButton = document.getElementById('new-issue-button');
+        const issuesLoading = document.getElementById('issues-loading');
+        const issuesEmpty = document.getElementById('issues-empty');
         const repoInput = document.getElementById('repo-input');
+        const repoSuggestionsContainer = document.getElementById('repo-suggestions-container');
         const titleInput = document.getElementById('title-input');
         const bodyInput = document.getElementById('body-input');
         const notificationBox = document.getElementById('notification-box');
@@ -148,6 +199,7 @@
         const loadingSpinner = document.getElementById('loading-spinner');
         
         let githubAccessToken = null;
+        let githubUsername = null;
 
         function showNotification(message, type = 'error') {
             if (!notificationBox) {
@@ -173,40 +225,223 @@
 
         let supabase;
         try {
-            // Access the global 'supabase' object created by the UMD script and call its createClient method.
-            // This is the only required external service initialization.
             supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         } catch (e) {
             console.error(e.message);
             showNotification(`Setup Error: Supabase client failed to initialize.`, 'error');
         }
 
+        /**
+         * Debounce utility function.
+         */
+        function debounce(func, timeout = 400) {
+            let timer;
+            return (...args) => {
+                clearTimeout(timer);
+                timer = setTimeout(() => { func.apply(this, args); }, timeout);
+            };
+        }
+
+        function switchView(view) {
+            if (view === 'list') {
+                issuesListView.classList.remove('hidden');
+                form.classList.add('hidden');
+            } else if (view === 'form') {
+                issuesListView.classList.add('hidden');
+                form.classList.remove('hidden');
+            }
+        }
+
+        function handleSuggestionClick(repoFullName) {
+            repoInput.value = repoFullName;
+            renderRepoSuggestions([]); // Clear suggestions after selection
+        }
+
+        function renderRepoSuggestions(repos) {
+            repoSuggestionsContainer.innerHTML = '';
+
+            if (!repos || repos.length === 0) {
+                repoSuggestionsContainer.classList.add('hidden');
+                return;
+            }
+
+            repos.forEach(repo => {
+                const item = document.createElement('div');
+                const repoFullName = repo.full_name;
+                
+                item.className = 'p-3 cursor-pointer hover:bg-gray-100 transition duration-100 border-b border-gray-100 last:border-b-0 flex items-center justify-between';
+                item.innerHTML = `
+                    <div>
+                        <span class="font-medium text-gh-primary">${repoFullName}</span>
+                        <span class="text-xs text-gray-500 block">${repo.description ? repo.description.substring(0, 50) + '...' : 'No description'}</span>
+                    </div>
+                    <i data-feather="star" class="w-4 h-4 text-yellow-500 ml-2"></i>
+                `;
+                item.addEventListener('mousedown', (e) => { // Use mousedown to prevent blur from firing first
+                    e.preventDefault(); 
+                    handleSuggestionClick(repoFullName);
+                });
+                repoSuggestionsContainer.appendChild(item);
+            });
+
+            repoSuggestionsContainer.classList.remove('hidden');
+            feather.replace();
+        }
+
+        async function fetchRepoSuggestions(query) {
+            if (query.length < 3) {
+                renderRepoSuggestions([]);
+                return;
+            }
+
+            // Hide suggestions container while loading
+            repoSuggestionsContainer.classList.add('hidden');
+            repoSuggestionsContainer.innerHTML = `<div class="p-3 text-center text-gray-500 text-sm"><i data-feather="loader" class="w-4 h-4 animate-spin inline-block mr-2"></i>Searching...</div>`;
+            repoSuggestionsContainer.classList.remove('hidden');
+            feather.replace();
+            
+            // Search only for the full name or description to keep results relevant
+            const searchQuery = `${query} in:full_name,description`;
+            const apiUrl = `https://api.github.com/search/repositories?q=${encodeURIComponent(searchQuery)}&per_page=7`;
+            
+            try {
+                const headers = { 'Accept': 'application/vnd.github.v3+json' };
+                // Use access token for higher rate limit if available
+                if (githubAccessToken) {
+                    headers['Authorization'] = `Bearer ${githubAccessToken}`;
+                }
+                
+                const response = await fetch(apiUrl, { headers });
+                const data = await response.json();
+
+                if (response.ok && data.items) {
+                    renderRepoSuggestions(data.items);
+                } else {
+                    let errorMessage = data.message || `Failed to fetch repository suggestions. Status: ${response.status}`;
+                    if (response.status === 403 && data.message && data.message.includes('rate limit')) {
+                         errorMessage = 'Rate limit exceeded for repository search. Please try again soon or sign in.';
+                    }
+                    showNotification(errorMessage, 'warning');
+                    renderRepoSuggestions(null);
+                }
+            } catch (error) {
+                console.error('Fetch Repo Suggestions Error:', error);
+                renderRepoSuggestions(null);
+            }
+        }
+        
+        // Debounced wrapper for the fetch function
+        const debouncedFetchRepos = debounce((query) => {
+            fetchRepoSuggestions(query);
+        }, 400);
+
+        function renderIssues(issues) {
+            issuesContainer.innerHTML = '';
+            issuesLoading.classList.add('hidden');
+            issuesEmpty.classList.add('hidden');
+
+            if (!issues || issues.length === 0) {
+                issuesEmpty.classList.remove('hidden');
+                return;
+            }
+
+            issues.forEach(issue => {
+                const stateColor = issue.state === 'open' ? 'text-green-500' : 'text-red-500';
+                const stateIcon = issue.state === 'open' ? 'circle' : 'check-circle';
+                // issue.repository_url is like ".../repos/owner/repo_name"
+                const repoPath = issue.repository_url.split('/').slice(-2).join('/');
+                const date = new Date(issue.created_at).toLocaleDateString();
+
+                const issueHtml = `
+                    <a href="${issue.html_url}" target="_blank" class="issue-card block">
+                        <div class="flex-shrink-0 mr-4">
+                            <i data-feather="${stateIcon}" class="w-4 h-4 ${stateColor}"></i>
+                        </div>
+                        <div class="flex-grow">
+                            <p class="text-sm text-gray-500 mb-1">
+                                <span class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">${repoPath}</span>
+                                created on ${date}
+                            </p>
+                            <h3 class="text-lg font-semibold text-gh-primary hover:text-gh-blue transition-colors duration-150">${issue.title}</h3>
+                            <p class="text-sm text-gray-500 mt-1">#${issue.number} ${issue.state}</p>
+                        </div>
+                    </a>
+                `;
+                issuesContainer.insertAdjacentHTML('beforeend', issueHtml);
+            });
+            feather.replace();
+        }
+
+        async function fetchUserIssues(username) {
+            if (!username || !githubAccessToken) return;
+
+            issuesContainer.innerHTML = '';
+            issuesEmpty.classList.add('hidden');
+            issuesLoading.classList.remove('hidden');
+            feather.replace();
+
+            // Search query: issues created by the user, sorted by update date, showing all states
+            const query = `author:${username} is:issue state:all`; 
+            const apiUrl = `https://api.github.com/search/issues?q=${encodeURIComponent(query)}&sort=updated&order=desc`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${githubAccessToken}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    renderIssues(data.items);
+                } else {
+                    const errorData = await response.json();
+                    showNotification(`Failed to fetch issues: ${errorData.message || response.statusText}`, 'error');
+                    renderIssues(null); 
+                }
+            } catch (error) {
+                showNotification('Network error while fetching issues.', 'error');
+                console.error('Fetch Issues Error:', error);
+                renderIssues(null);
+            } finally {
+                issuesLoading.classList.add('hidden');
+            }
+        }
 
         function updateUI(session) {
             loadingSpinner.classList.add('hidden');
 
             if (session && session.provider_token) {
                 githubAccessToken = session.provider_token;
-                userProfile.classList.remove('hidden');
-                userProfile.classList.add('flex');
-                form.classList.remove('hidden');
-
+                
                 const user = session.user;
                 const userMetadata = user.user_metadata || {};
+                githubUsername = userMetadata.user_name;
                 
-                userName.textContent = userMetadata.user_name || user.email || 'GitHub User';
+                userProfile.classList.remove('hidden');
+                userProfile.classList.add('flex');
+                
+                userName.textContent = githubUsername || user.email || 'GitHub User';
                 userAvatar.src = userMetadata.avatar_url || 'https://placehold.co/32x32/cccccc/333333?text=U';
                 
                 authButton.textContent = 'Sign Out';
                 authButton.classList.remove('bg-gh-blue');
                 authButton.classList.add('bg-red-500');
 
-                showNotification(`Logged in as ${userName.textContent}. You can now create issues.`, 'success');
+                showNotification(`Logged in as ${userName.textContent}. Loading your issue history...`, 'success');
+                
+                // Show the list view and fetch issues upon successful login
+                switchView('list');
+                fetchUserIssues(githubUsername);
+
 
             } else {
                 githubAccessToken = null;
+                githubUsername = null;
                 userProfile.classList.add('hidden');
                 userProfile.classList.remove('flex');
+                issuesListView.classList.add('hidden');
                 form.classList.add('hidden');
                 
                 authButton.innerHTML = `<i data-feather="github" class="w-5 h-5"></i><span id="auth-button-text">Sign in with GitHub</span>`;
@@ -224,6 +459,7 @@
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'github',
                 options: {
+                    // Requires 'public_repo' and 'write:issue' scope to create issues
                     scopes: 'public_repo, write:issue', 
                 }
             });
@@ -248,7 +484,7 @@
         async function createIssue(event) {
             event.preventDefault();
             
-            if (!githubAccessToken) {
+            if (!githubAccessToken || !githubUsername) {
                 showNotification('You must be signed in to create an issue.', 'error');
                 return;
             }
@@ -289,12 +525,15 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    showNotification(`Issue #${data.number} created successfully in ${repoValue}!`, 'success');
+                    showNotification(`Issue #${data.number} created successfully in ${repoValue}! Now showing history.`, 'success');
                     
+                    // Clear the form fields
                     titleInput.value = '';
                     bodyInput.value = '';
 
-                    window.open(data.html_url, '_blank');
+                    // Switch back to the list view and refresh the issues
+                    switchView('list');
+                    fetchUserIssues(githubUsername);
                     
                 } else {
                     let errorMessage = data.message || `Failed to create issue. Status: ${response.status}`;
@@ -327,8 +566,38 @@
                 }
             });
 
+            newIssueButton.addEventListener('click', () => {
+                switchView('form');
+            });
+
             form.addEventListener('submit', createIssue);
             
+            // Autocomplete setup
+            repoInput.addEventListener('input', (e) => {
+                const query = e.target.value.trim();
+                if (query.length === 0) {
+                    renderRepoSuggestions([]);
+                } else {
+                    debouncedFetchRepos(query);
+                }
+            });
+
+            // Hide suggestions when focus is lost (delaying to allow click on suggestion)
+            repoInput.addEventListener('blur', () => {
+                setTimeout(() => {
+                    repoSuggestionsContainer.classList.add('hidden');
+                }, 200);
+            });
+
+            // Show suggestions again on focus if there's already text and suggestions are available
+            repoInput.addEventListener('focus', (e) => {
+                if (repoSuggestionsContainer.children.length > 0 && e.target.value.trim().length >= 3) {
+                    repoSuggestionsContainer.classList.remove('hidden');
+                }
+            });
+
+
+            // Supabase Auth Initialization
             if (supabase) {
                 supabase.auth.getSession().then(({ data: { session } }) => {
                     updateUI(session);
