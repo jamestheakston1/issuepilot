@@ -34,12 +34,10 @@
 <body class="bg-gray-50 text-gray-800">
 
     <header class="fixed top-0 left-0 right-0 h-16 bg-white shadow-md z-30 flex items-center justify-between px-4">
-        <!-- Left side: Mobile Menu Button -->
         <button id="menu-toggle-button" class="lg:hidden p-2 rounded-lg text-sidebar-dark hover:bg-gray-100 transition duration-150">
             <i data-feather="menu" class="w-6 h-6"></i>
         </button>
 
-        <!-- Right side: Status Display -->
         <div id="status-container" class="flex items-center text-sm font-medium text-gray-600 ml-auto">
             <span class="hidden sm:inline mr-2">IssuePilot Status:</span>
             <div id="github-status" class="flex items-center space-x-1 p-1 px-3 rounded-full bg-gray-200">
@@ -146,7 +144,6 @@
                     <section class="mb-10 w-full max-w-3xl">
                         <h3 class="text-xl font-semibold mb-3 text-gray-900">Video Guide</h3>
                         
-                        <!-- Standard HTML5 Video Player -->
                         <div class="relative bg-gray-900 rounded-xl overflow-hidden shadow-2xl aspect-video">
                             <video 
                                 id="video-player"
@@ -160,7 +157,6 @@
                             </video>
                         </div>
                         
-                        <!-- Instructions and Link Block -->
                         <div class="mt-4 p-4 bg-gray-100 border border-gray-200 rounded-xl text-center">
                             <p class="text-base text-gray-700 font-medium mb-3">
                                 To follow along with this tutorial, please open the required GitHub settings page:
@@ -185,35 +181,29 @@
     </div>
 
     <script>
-        // Function to fetch and display GitHub Status
         const fetchGitHubStatus = async () => {
             const statusDiv = document.getElementById('github-status');
             const statusTextSpan = document.getElementById('status-text');
             const statusIcon = document.getElementById('status-icon');
             
-            // Updated API URL to use a CORS proxy to prevent "Failed to fetch" errors
-            const API_URL = 'https://corsproxy.io/?https://api.githubstatus.com/api/v2/status.json';
+            const API_URL = 'https://api.githubstatus.com/api/v2/status.json';
 
-            // Helper to apply status styles
             const setStatus = (description, iconName, bgColor, textColor) => {
                 statusTextSpan.textContent = description;
-                // Rebuild classes to apply new styles
                 statusDiv.className = `flex items-center space-x-1 p-1 px-3 rounded-full transition-colors duration-300 ${bgColor} ${textColor}`;
                 statusIcon.setAttribute('data-feather', iconName);
                 statusIcon.classList.remove('animate-spin');
-                feather.replace(); // Re-render icon
+                feather.replace();
             };
 
             try {
                 const response = await fetch(API_URL);
                 if (!response.ok) {
-                    // If the proxy or GitHub returns an error status
-                    throw new Error('API or proxy network response was not ok');
+                    throw new Error('API network response was not ok');
                 }
                 const data = await response.json();
                 const { indicator, description } = data.status;
 
-                // Map indicator to styles
                 switch (indicator) {
                     case 'none':
                         setStatus('Operational', 'check-circle', 'bg-green-100', 'text-green-800');
@@ -288,7 +278,7 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             feather.replace();
-            fetchGitHubStatus(); // Initialize status fetch
+            fetchGitHubStatus();
 
             const sidebar = document.getElementById('sidebar');
             const menuToggleButton = document.getElementById('menu-toggle-button');
