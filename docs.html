@@ -77,6 +77,11 @@
                     <span>Deleting Account</span>
                 </a>
                 
+                <a href="#developer" id="link-developer" class="sidebar-link flex items-center space-x-3 p-3 rounded-lg hover:bg-sidebar-hover transition duration-150 text-sm mb-2">
+                    <i data-feather="code" class="w-4 h-4"></i>
+                    <span>Developer Integration</span>
+                </a>
+
                 <div class="h-px bg-gray-700/50 my-6"></div>
                 
                 <a href="https://issuepilot.pages.dev/" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-sidebar-hover transition duration-150 text-sm font-semibold text-white">
@@ -95,7 +100,7 @@
                     <h1 class="text-3xl font-extrabold text-gray-900 mb-8">Overview</h1>
                     <section class="bg-white p-6 rounded-xl shadow-lg mb-12">
                         <p class="text-lg text-gray-600">
-                            This guide details the process of linking your GitHub account to IssuePilot, and also securely deleting your account.
+                            This comprehensive guide provides details on linking your GitHub account, managing account deletion, and integrating with the IssuePilot Developer API.
                         </p>
                     </section>
                 </div>
@@ -116,7 +121,6 @@
                                 <li>Review permissions if you wish.</li>
                                 <li>Click 'Authorise IssuePilot' at the bottom of the page.</li>
                             </ol>
-                            <!-- Image illustrating the authorization screen -->
                             <div class="mt-6">
                                 <img 
                                     src="assets/authorisescreen.png" 
@@ -133,7 +137,6 @@
                             <p class="text-lg text-gray-600 mb-4">
                                 If you are currently signed into multiple GitHub accounts in your browser, the GitHub authorization screen will prompt you to select which account you want to link to IssuePilot.
                             </p>
-                            <!-- Image illustrating the account selection screen -->
                             <div class="mb-6">
                                 <img 
                                     src="assets/accountselect.png" 
@@ -198,18 +201,133 @@
                         <p class="text-sm text-gray-500 mt-2">The video shows the step-by-step process of preparing your account for deletion.</p>
                     </section>
                 </div>
+
+                <div id="page-developer" class="content-page hidden">
+                    <h2 class="text-3xl font-extrabold text-gray-900 mb-8">Developer Integration</h2>
+                    
+                    <!-- LOCKED CONTENT (Default view if no session) -->
+                    <section id="developer-locked-content" class="bg-white p-12 rounded-xl shadow-lg text-center border-t-4 border-red-500">
+                        <div class="text-red-500 mb-4 mx-auto">
+                            <i data-feather="lock" class="w-12 h-12 mx-auto"></i>
+                        </div>
+                        <h3 class="text-3xl font-bold text-gray-900 mb-4">This section is locked!</h3>
+                        <p class="text-lg text-gray-600 mb-8">
+                            You need to connect your GitHub account to access this section.
+                        </p>
+                        <button id="github-login-btn" class="inline-flex items-center justify-center bg-gray-900 text-white py-3 px-8 rounded-lg font-semibold hover:bg-gray-700 transition duration-150 shadow-lg transform hover:scale-[1.02]">
+                            <i data-feather="github" class="w-5 h-5 mr-2"></i>
+                            Continue with GitHub
+                        </button>
+                        
+                        <!-- Updated explanatory text below the button -->
+                        <p class="text-sm text-gray-500 mt-4 max-w-sm mx-auto">
+                            This authentication is specifically for the <strong> IssuePilot Developer </strong> service and is separate from your main IssuePilot account.
+                        </p>
+                    </section>
+
+                    <!-- AUTHENTICATED/COMING SOON CONTENT -->
+                    <section id="developer-coming-soon" class="hidden bg-white p-12 rounded-xl shadow-lg text-center border-t-4 border-primary-blue">
+                        <div class="flex justify-end mb-4">
+                            <button id="github-signout-btn" class="inline-flex items-center text-sm font-semibold text-red-600 hover:text-red-800 transition duration-150">
+                                <i data-feather="log-out" class="w-4 h-4 mr-1"></i>
+                                Sign Out
+                            </button>
+                        </div>
+
+                        <div class="text-primary-blue mb-4 mx-auto">
+                            <i data-feather="alert-circle" class="w-12 h-12 mx-auto"></i>
+                        </div>
+                        <h3 class="text-3xl font-bold text-gray-900 mb-4">Section Coming Soon</h3>
+                        <p class="text-lg text-gray-600 mb-8">
+                            This section is currently not completed, as we are working on developer integration for our product.
+                        </p>
+                    </section>
+                </div>
                 
             </div>
         </main>
     </div>
 
-    <script>
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.42.2/+esm';
+
+        const SUPABASE_URL = 'https://eygyqnvwburavclwknwv.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5Z3lxbnZ3YnVyYXZjbHdrbnd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3MTEyNTEsImV4cCI6MjA4MTI4NzI1MX0.iT2xt46c1RvqSkMpxiR5Z89DjVkYm5OirxD2CKrveOo';
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let currentSession = null;
+        
+        const alertMessage = (message, type = 'info') => {
+            const color = type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-blue-500';
+            const existing = document.getElementById('temp-alert-box');
+            if (existing) existing.remove();
+
+            const alertBox = document.createElement('div');
+            alertBox.id = 'temp-alert-box';
+            alertBox.className = `fixed top-20 right-4 p-4 rounded-xl shadow-xl text-white font-semibold z-50 transition-transform transform translate-x-0 opacity-100 ${color}`;
+            alertBox.textContent = message;
+            document.body.appendChild(alertBox);
+
+            setTimeout(() => {
+                alertBox.classList.add('opacity-0', 'translate-x-full');
+                setTimeout(() => alertBox.remove(), 500);
+            }, 4000);
+        };
+
+        const updateSession = (session) => {
+            currentSession = session;
+            console.log("Supabase Session Updated. Authenticated:", !!currentSession);
+
+            if (window.location.hash.substring(1) === 'developer') {
+                checkAuthAndRenderDeveloperPage();
+            }
+        };
+
+        const signInWithGitHub = async () => {
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'github',
+                options: {
+                    redirectTo: window.location.origin + window.location.pathname + '#developer'
+                }
+            });
+
+            if (error) {
+                console.error('GitHub sign-in failed:', error.message);
+                alertMessage('GitHub sign-in failed. Check the console for details.', 'error');
+            }
+        };
+
+        const signOutWithGitHub = async () => {
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+                console.error('GitHub sign-out failed:', error.message);
+                alertMessage('Sign-out failed. Check the console for details.', 'error');
+            } else {
+                alertMessage('Successfully signed out.', 'success');
+            }
+        };
+        
+        const checkAuthAndRenderDeveloperPage = () => {
+            const lockedContent = document.getElementById('developer-locked-content');
+            const comingSoonContent = document.getElementById('developer-coming-soon');
+            
+            if (!lockedContent || !comingSoonContent) return; 
+
+            if (currentSession) {
+                lockedContent.classList.add('hidden');
+                comingSoonContent.classList.remove('hidden');
+            } else {
+                lockedContent.classList.remove('hidden');
+                comingSoonContent.classList.add('hidden');
+            }
+        };
+
+
         const fetchGitHubStatus = async () => {
             const statusDiv = document.getElementById('github-status');
             const statusTextSpan = document.getElementById('status-text');
             const statusIcon = document.getElementById('status-icon');
             
-            // Using www.githubstatus.com instead of api.githubstatus.com to potentially resolve ERR_NAME_NOT_RESOLVED
             const API_URL = 'https://www.githubstatus.com/api/v2/status.json';
 
             const setStatus = (description, iconName, bgColor, textColor) => {
@@ -245,7 +363,6 @@
 
             } catch (error) {
                 console.error('Failed to fetch GitHub status:', error);
-                // Set status clearly to indicate a network issue.
                 setStatus('Network Error', 'cloud-off', 'bg-red-100', 'text-red-800');
             }
         };
@@ -300,16 +417,72 @@
             });
         };
 
+        const sidebarLinks = document.querySelectorAll('.sidebar-link');
+        const contentPages = document.querySelectorAll('.content-page');
 
-        document.addEventListener('DOMContentLoaded', () => {
+        const showPage = (pageId) => {
+            const targetPageId = 'page-' + pageId;
+            
+            contentPages.forEach(page => {
+                if (page.id === targetPageId) {
+                    page.classList.remove('hidden');
+                    window.scrollTo(0, 0);
+                    
+                    if (pageId !== 'deleting-account') {
+                        const video = document.getElementById('video-player');
+                        if (video && !video.paused) {
+                            video.pause();
+                        }
+                    }
+                } else {
+                    page.classList.add('hidden');
+                }
+            });
+        };
+
+        const setActiveLink = (linkId) => {
+            sidebarLinks.forEach(link => {
+                link.classList.remove('active');
+            });
+
+            const activeLink = document.getElementById('link-' + linkId);
+            if (activeLink) {
+                activeLink.classList.add('active');
+            }
+            showPage(linkId);
+
+            if (linkId === 'developer') {
+                checkAuthAndRenderDeveloperPage();
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', async () => {
             feather.replace();
             fetchGitHubStatus();
+
+            const { data: { session } } = await supabase.auth.getSession();
+            updateSession(session);
+            
+            supabase.auth.onAuthStateChange((event, session) => {
+                updateSession(session);
+                if (event === 'SIGNED_IN' && window.location.hash.substring(1) === 'developer') {
+                    alertMessage('Successfully connected with GitHub!', 'success');
+                }
+            });
+
+            const loginBtn = document.getElementById('github-login-btn');
+            if (loginBtn) {
+                loginBtn.addEventListener('click', signInWithGitHub);
+            }
+            
+            const signOutBtn = document.getElementById('github-signout-btn');
+            if (signOutBtn) {
+                signOutBtn.addEventListener('click', signOutWithGitHub);
+            }
 
             const sidebar = document.getElementById('sidebar');
             const menuToggleButton = document.getElementById('menu-toggle-button');
             const backdrop = document.getElementById('backdrop');
-            const sidebarLinks = document.querySelectorAll('.sidebar-link');
-            const contentPages = document.querySelectorAll('.content-page');
 
             const toggleMenu = () => {
                 sidebar.classList.toggle('-translate-x-full');
@@ -327,38 +500,6 @@
                 });
             });
 
-            const showPage = (pageId) => {
-                const targetPageId = 'page-' + pageId;
-                
-                contentPages.forEach(page => {
-                    if (page.id === targetPageId) {
-                        page.classList.remove('hidden');
-                        window.scrollTo(0, 0);
-                        
-                        if (pageId !== 'deleting-account') {
-                            const video = document.getElementById('video-player');
-                            if (video && !video.paused) {
-                                video.pause();
-                            }
-                        }
-                    } else {
-                        page.classList.add('hidden');
-                    }
-                });
-            };
-
-            const setActiveLink = (linkId) => {
-                sidebarLinks.forEach(link => {
-                    link.classList.remove('active');
-                });
-
-                const activeLink = document.getElementById('link-' + linkId);
-                if (activeLink) {
-                    activeLink.classList.add('active');
-                    showPage(linkId);
-                }
-            };
-
             const initialHash = window.location.hash.substring(1);
             const targetId = initialHash || 'overview'; 
             
@@ -375,14 +516,15 @@
                     
                     setActiveLink(linkId);
                     
-                    history.pushState(null, null, '#' + linkId);
+                    if (window.location.hash.substring(1) !== linkId) {
+                        history.pushState(null, null, '#' + linkId);
+                    }
                 });
             });
 
             initPiP();
 
             const video = document.getElementById('video-player');
-            
             if (video) {
                 video.addEventListener('contextmenu', function(e) {
                     e.preventDefault(); 
