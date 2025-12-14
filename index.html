@@ -184,20 +184,7 @@
                     </div>
                 </div>
                 
-                <div class="border border-dashed border-gray-300 p-4 rounded-lg bg-gray-50">
-                    <label for="image-upload" class="block text-sm font-medium text-gh-primary mb-2 flex items-center space-x-2">
-                        <i data-feather="image" class="w-4 h-4 text-gh-blue"></i>
-                        <span>Attach Image (Embeds as Base64 in description)</span>
-                    </label>
-                    <input type="file" id="image-upload" accept="image/*" class="w-full text-sm text-gray-500
-                        file:mr-4 file:py-2 file:px-4
-                        file:rounded-full file:border-0
-                        file:text-sm file:font-semibold
-                        file:bg-gh-blue/10 file:text-gh-blue
-                        hover:file:bg-gh-blue/20 transition duration-150
-                    ">
-                    <p class="mt-2 text-xs text-gray-500">Note: The image is converted to a large Base64 string and appended to the issue description. Max 5MB file size.</p>
-                </div>
+                
 
                 <div>
                     <label for="labels-input" class="block text-sm font-medium text-gh-primary mb-1">Labels (e.g., bug, enhancement, priority:high)</label>
@@ -367,7 +354,6 @@
         const modalYesButton = document.getElementById('modal-yes-button');
         const modalNoButton = document.getElementById('modal-no-button');
         const kebabMenu = document.getElementById('kebab-menu'); 
-        const imageUpload = document.getElementById('image-upload');
         const labelsInput = document.getElementById('labels-input');
         const assigneesInput = document.getElementById('assignees-input');
         const milestoneInput = document.getElementById('milestone-input');
@@ -385,7 +371,7 @@
         const modalComments = document.getElementById('modal-comments');
         const modalCommentsLoading = document.getElementById('modal-comments-loading');
         const modalGithubLink = document.getElementById('modal-github-link');
-        const helpLink = document.getElementById('help-link'); // ADDED: New help link element
+        const helpLink = document.getElementById('help-link');
 
         let currentMentionQuery = '';
         let mentionStartIndex = -1;
@@ -395,11 +381,15 @@
         let githubAccessToken = null;
         let githubUsername = null;
         const signInText = 'Connect with GitHub';
+        
+        let notificationTimeout;
 
-        function showNotification(message, type = 'error') {
+        function showNotification(message, type = 'error', persistent = false) {
             if (!notificationBox) {
                 return;
             }
+
+            clearTimeout(notificationTimeout);
 
             notificationBox.textContent = message;
             notificationBox.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700', 'bg-yellow-100', 'text-yellow-700');
@@ -412,9 +402,11 @@
                 notificationBox.classList.add('bg-red-100', 'text-red-700');
             }
 
-            setTimeout(() => {
-                notificationBox.classList.add('hidden');
-            }, 7000);
+            if (!persistent) {
+                notificationTimeout = setTimeout(() => {
+                    notificationBox.classList.add('hidden');
+                }, 7000);
+            }
         }
 
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -585,11 +577,10 @@
         
         async function fetchIssueDetails(issueApiUrl) {
             if (!githubAccessToken) {
-                 showNotification('Please sign in to view issue details.', 'warning');
+                 showNotification('Please sign in to view issue details.', 'warning', true);
                  return;
             }
             
-            // FIX: Check for the local placeholder URL
             if (issueApiUrl === '#') {
                 issueModal.classList.add('hidden');
                 showNotification('This is a local copy. Full GitHub details are not available yet. Please wait for the next sync or ensure it was successfully created on GitHub.', 'warning');
@@ -796,7 +787,6 @@
                     
                     combinedIssues.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-                    // Only save the successfully fetched GitHub issues to clear old placeholders
                     saveIssuesToLocalStorage(githubIssues);
                     renderIssues(combinedIssues);
                 } else {
@@ -822,14 +812,12 @@
                 const userMetadata = user.user_metadata || {};
                 githubUsername = userMetadata.user_name;
 
-                // NEW: Adjust authArea for signed-in (horizontal) layout
                 authArea.classList.remove('justify-center', 'flex-col', 'space-y-3');
                 authArea.classList.add('justify-between', 'flex-row');
 
                 userProfile.classList.remove('hidden');
                 userProfile.classList.add('flex');
                 
-                // NEW: Hide the help link when signed in
                 helpLink.classList.add('hidden');
 
                 userName.textContent = githubUsername || user.email || 'GitHub User';
@@ -851,7 +839,6 @@
                 githubAccessToken = null;
                 githubUsername = null;
 
-                // NEW: Adjust authArea for signed-out (vertical) layout
                 authArea.classList.remove('justify-between', 'flex-row');
                 authArea.classList.add('justify-center', 'flex-col', 'space-y-3');
 
@@ -860,7 +847,6 @@
                 issuesListView.classList.add('hidden');
                 form.classList.add('hidden');
                 
-                // NEW: Show the help link when signed out
                 helpLink.classList.remove('hidden');
                 
                 authButton.innerHTML = `<i data-feather="github" class="w-5 h-5"></i><span id="auth-button-text">${signInText}</span>`;
@@ -869,7 +855,7 @@
                 
                 dropdownMenu.classList.add('hidden');
                 
-                showNotification('Please sign in with GitHub to create issues via the API.', 'warning');
+                showNotification('Please sign in with GitHub to create issues via the API.', 'warning', true);
             }
             feather.replace();
         }
@@ -950,31 +936,6 @@
             textarea.focus();
         }
         
-        function handleImageUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            if (file.size > 1024 * 1024 * 5) { 
-                showNotification('Image size exceeds 5MB. Please choose a smaller file.', 'error');
-                imageUpload.value = ''; 
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const base64Image = e.target.result;
-                const markdown = `\n\n![${file.name}](${base64Image})\n\n`;
-                
-                bodyInput.value += markdown;
-                imageUpload.value = ''; 
-                showNotification(`Image "${file.name}" converted to Base64 and appended to description.`, 'success');
-            };
-            reader.onerror = () => {
-                showNotification('Failed to read image file.', 'error');
-            };
-            reader.readAsDataURL(file);
-        }
-
         function hideMentionDropdown() {
             mentionSuggestionsContainer.classList.add('hidden');
             currentMentionQuery = '';
@@ -1087,7 +1048,7 @@
             event.preventDefault();
             
             if (!githubAccessToken || !githubUsername) {
-                showNotification('You must be signed in to create an issue.', 'error');
+                showNotification('You must be signed in to create an issue.', 'error', true);
                 return;
             }
 
@@ -1110,7 +1071,7 @@
             submitButton.innerHTML = `<i data-feather="loader" class="w-5 h-5 animate-spin"></i><span>Creating Issue...</span>`;
             feather.replace();
             
-            saveIssueToLocalStorage({ owner, repo, title: titleValue }); // ADDED: Save local copy
+            saveIssueToLocalStorage({ owner, repo, title: titleValue });
 
             bodyValue = bodyValue + '\n\n' + APP_SIGNATURE;
 
@@ -1220,14 +1181,10 @@
             modalYesButton.addEventListener('click', handleModalYes);
             modalNoButton.addEventListener('click', handleModalNo);
             
-            imageUpload.addEventListener('change', handleImageUpload);
-            
-            // Close the issue details modal
             closeModalButton.addEventListener('click', () => {
                 issueModal.classList.add('hidden');
             });
             
-            // Close modal when clicking outside
             issueModal.addEventListener('click', (e) => {
                 if (e.target === issueModal) {
                     issueModal.classList.add('hidden');
