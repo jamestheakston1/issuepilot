@@ -96,6 +96,9 @@
                 <span id="auth-button-text">Connect with GitHub</span>
             </button>
         </div>
+        
+        <div id="github-status-indicator" class="text-center mb-6 hidden">
+            </div>
 
         <div id="loading-spinner" class="hidden text-center py-10 text-gh-blue">
             <i data-feather="loader" class="w-8 h-8 animate-spin mx-auto mb-2"></i>
@@ -106,7 +109,7 @@
             
             <div id="issues-list-view" class="hidden space-y-4">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-semibold text-gh-primary">Your IssuePilot History</h2>
+                    <h2 class="text-2xl font-semibold text-gh-primary">Your Local Issue History</h2>
                     <button id="new-issue-button"
                             class="flex items-center space-x-2 px-3 py-2 bg-gh-blue text-white font-semibold rounded-lg shadow-md hover:bg-opacity-90 transition duration-150">
                         <i data-feather="plus" class="w-5 h-5"></i>
@@ -116,11 +119,11 @@
                 
                 <div id="issues-loading" class="text-center py-6 hidden">
                     <i data-feather="loader" class="w-6 h-6 animate-spin mx-auto text-gray-500"></i>
-                    <p class="text-gray-500 mt-2">Loading issues created by IssuePilot...</p>
+                    <p class="text-gray-500 mt-2">Loading issues...</p>
                 </div>
                 
                 <div id="issues-empty" class="text-center py-6 hidden">
-                    <p class="text-gray-500 italic">No issues found created by IssuePilot.</p>
+                    <p class="text-gray-500 italic">No issues found in local history. Create one to start tracking!</p>
                 </div>
                 
                 <div id="issues-container" class="space-y-3">
@@ -254,9 +257,10 @@
     <script type="module">
         
         const SUPABASE_URL = 'https://syczfzloslkszzpuvcre.supabase.co'; 
-        // FIX: The user provided a different key in their debug message which resolves the 401 error.
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5Y3pmemxvc2xrc3p6cHV2Y3JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2MTQwMjUsImV4cCI6MjA4MTE5MDAyNX0.vy8urIWxuwuaEYCjfHiWQUyBYKDXdhGiK8X4x_bafrw';
         const APP_SIGNATURE = '';
+        const LOCAL_STORAGE_KEY = 'issuePilotHistory'; 
+        const GITHUB_STATUS_API_URL = 'https://www.githubstatus.com/api/v2/summary.json'; // Official status API
 
         const form = document.getElementById('issue-form');
         const issuesListView = document.getElementById('issues-list-view');
@@ -290,6 +294,7 @@
         const milestoneInput = document.getElementById('milestone-input');
         const mentionButton = document.getElementById('mention-button');
         const mentionSuggestionsContainer = document.getElementById('mention-suggestions-container');
+        const githubStatusIndicator = document.getElementById('github-status-indicator'); // New DOM element
         
         let currentMentionQuery = '';
         let mentionStartIndex = -1;
@@ -341,6 +346,89 @@
             }
         }
 
+        /**
+         * LOCAL STORAGE FUNCTIONS
+         */
+        function getIssuesFromLocalStorage() {
+            try {
+                const issues = localStorage.getItem(LOCAL_STORAGE_KEY);
+                return issues ? JSON.parse(issues) : [];
+            } catch (error) {
+                console.error("Error reading from localStorage:", error);
+                return [];
+            }
+        }
+
+        function saveIssuesToLocalStorage(issues) {
+            try {
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(issues));
+            } catch (error) {
+                console.error("Error writing to localStorage:", error);
+                showNotification("Warning: Could not save issue history to local storage.", 'warning');
+            }
+        }
+        
+        /**
+         * GITHUB STATUS FUNCTIONS
+         */
+        function updateApiStatus(status, type = 'info') {
+            let dotClass = '';
+            let textClass = 'text-gray-600';
+
+            // Custom Tailwind colors gh-success, gh-warning, gh-dark
+            if (type === 'success') {
+                dotClass = 'bg-gh-success';
+                textClass = 'text-gh-success';
+            } else if (type === 'warning') {
+                dotClass = 'bg-gh-warning';
+                textClass = 'text-gh-dark';
+            } else if (type === 'error') {
+                dotClass = 'bg-red-500';
+                textClass = 'text-red-700';
+            } else {
+                dotClass = 'bg-gray-400';
+                textClass = 'text-gray-600';
+            }
+
+            githubStatusIndicator.innerHTML = `
+                <div class="flex items-center justify-center space-x-2 p-2 rounded-lg border border-gray-200 bg-gray-50/50">
+                    <span class="relative flex h-3 w-3">
+                        <span class="relative inline-flex rounded-full h-3 w-3 ${dotClass}"></span>
+                    </span>
+                    <span class="font-medium ${textClass}">GitHub API Status: ${status}</span>
+                </div>
+            `;
+            githubStatusIndicator.classList.remove('hidden');
+        }
+
+        async function fetchGitHubStatus() {
+            updateApiStatus('Checking...', 'info');
+
+            try {
+                const response = await fetch(GITHUB_STATUS_API_URL);
+                const data = await response.json();
+
+                const indicator = data.status.indicator; // 'none', 'minor', 'major', 'critical'
+                const description = data.status.description;
+
+                let statusType;
+                if (indicator === 'none') {
+                    statusType = 'success';
+                } else if (indicator === 'minor') {
+                    statusType = 'warning';
+                } else if (indicator === 'major' || indicator === 'critical') {
+                    statusType = 'error';
+                } else {
+                    statusType = 'info';
+                }
+
+                updateApiStatus(description, statusType);
+
+            } catch (error) {
+                updateApiStatus('Status Check Failed (Network Error)', 'error');
+            }
+        }
+        
         function handleSuggestionClick(repoFullName) {
             repoInput.value = repoFullName;
             renderRepoSuggestions([]);
@@ -457,11 +545,15 @@
                 issuesEmpty.classList.remove('hidden');
                 return;
             }
+            
+            // Sort issues by created_at date (most recent first)
+            issues.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
             issues.forEach(issue => {
                 const stateColor = issue.state === 'open' ? 'text-green-500' : 'text-red-500';
                 const stateIcon = issue.state === 'open' ? 'circle' : 'check-circle';
-                const repoPath = issue.repository_url.split('/').slice(-2).join('/');
+                // issue.repository_url is the full API URL for the repository: https://api.github.com/repos/{owner}/{repo}
+                const repoPath = issue.repository_url ? issue.repository_url.split('/').slice(-2).join('/') : 'N/A';
                 const date = new Date(issue.created_at).toLocaleDateString();
 
                 const issueHtml = `
@@ -483,42 +575,7 @@
             });
             feather.replace();
         }
-
-        async function fetchUserIssues(username) {
-            if (!username || !githubAccessToken) return;
-
-            issuesContainer.innerHTML = '';
-            issuesEmpty.classList.add('hidden');
-            issuesLoading.classList.remove('hidden');
-            feather.replace();
-
-            const query = `author:${username} is:issue state:all in:body "${APP_SIGNATURE}"`; 
-            const apiUrl = `https://api.github.com/search/issues?q=${encodeURIComponent(query)}&sort=updated&order=desc`;
-            
-            try {
-                const response = await fetch(apiUrl, {
-                    headers: {
-                        'Authorization': `Bearer ${githubAccessToken}`,
-                        'Accept': 'application/vnd.github.v3+json'
-                    }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    renderIssues(data.items);
-                } else {
-                    const errorData = await response.json();
-                    showNotification(`Failed to fetch issues: ${errorData.message || response.statusText}`, 'error');
-                    renderIssues(null); 
-                }
-            } catch (error) {
-                showNotification('Network error while fetching issues.', 'error');
-                renderIssues(null);
-            } finally {
-                issuesLoading.classList.add('hidden');
-            }
-        }
-
+        
         function updateUI(session) {
             loadingSpinner.classList.add('hidden');
 
@@ -544,10 +601,12 @@
                 
                 kebabButton.classList.remove('hidden');
 
-                showNotification(`Logged in as ${userName.textContent}. Loading your issue history...`, 'success');
+                showNotification(`Logged in as ${userName.textContent}. Loading local issue history...`, 'success');
                 
                 switchView('list');
-                fetchUserIssues(githubUsername);
+                
+                // Load and render issues from local storage immediately on sign-in
+                renderIssues(getIssuesFromLocalStorage());
 
 
             } else {
@@ -588,6 +647,10 @@
 
         async function signOut() {
             dropdownMenu.classList.add('hidden');
+            
+            // Clear local storage history on sign out for security/privacy
+            localStorage.removeItem(LOCAL_STORAGE_KEY);
+            showNotification('Signed out and cleared local issue history.', 'warning');
 
             const { error } = await supabase.auth.signOut();
             if (error) {
@@ -870,14 +933,21 @@
 
                     showNotification(notificationMessage, 'success');
                     
+                    // --- Local Storage Update Logic ---
+                    const issues = getIssuesFromLocalStorage();
+                    issues.unshift(data); // Add new issue to the beginning
+                    saveIssuesToLocalStorage(issues);
+                    
+                    // Reset form fields
                     titleInput.value = '';
                     bodyInput.value = '';
                     labelsInput.value = '';
                     assigneesInput.value = '';
                     milestoneInput.value = '';
+                    imageUpload.value = ''; // Clear file input
                     
                     switchView('list');
-                    fetchUserIssues(githubUsername);
+                    renderIssues(issues); // Re-render from the updated local array
                     
                 } else {
                     let errorMessage = data.message || `Failed to create issue. Status: ${response.status}`;
@@ -899,6 +969,8 @@
         document.addEventListener('DOMContentLoaded', () => {
             feather.replace();
             loadingSpinner.classList.remove('hidden');
+            
+            fetchGitHubStatus(); // Check and display GitHub API status
 
             authButton.addEventListener('click', () => {
                 if (githubAccessToken) {
@@ -969,8 +1041,7 @@
                 }
             });
 
-            // FIX 1: Aggressively clear stale Supabase keys from local storage 
-            // to prevent 401 errors when retrieving a new session after OAuth.
+            // Clean up stale Supabase keys and clear hash
             try {
                 const keysToRemove = Object.keys(localStorage).filter(key => key.startsWith('sb-'));
                 if (keysToRemove.length > 0) {
@@ -983,7 +1054,6 @@
             supabase.auth.getSession().then(({ data: { session } }) => {
                 updateUI(session);
 
-                // FIX 2: Clear the URL hash immediately after processing the session.
                 if (window.location.hash) {
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
