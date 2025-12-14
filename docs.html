@@ -76,6 +76,13 @@
                     <i data-feather="x-circle" class="w-4 h-4"></i>
                     <span>Deleting Account</span>
                 </a>
+                
+                <div class="h-px bg-gray-700/50 my-6"></div>
+                
+                <a href="https://issuepilot.pages.dev/" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-sidebar-hover transition duration-150 text-sm font-semibold text-white">
+                    <i data-feather="arrow-left" class="w-4 h-4 text-primary-blue"></i>
+                    <span>Back to IssuePilot</span>
+                </a>
             </nav>
         </aside>
         
@@ -109,6 +116,14 @@
                                 <li>Review permissions if you wish.</li>
                                 <li>Click 'Authorise IssuePilot' at the bottom of the page.</li>
                             </ol>
+                            <!-- Image illustrating the authorization screen -->
+                            <div class="mt-6">
+                                <img 
+                                    src="assets/authorisescreen.png" 
+                                    alt="Screenshot of the GitHub authorization screen for IssuePilot" 
+                                    class="w-full h-auto rounded-lg shadow-xl border border-gray-200 object-contain"
+                                >
+                            </div>
                         </div>
                     </section>
 
@@ -118,6 +133,14 @@
                             <p class="text-lg text-gray-600 mb-4">
                                 If you are currently signed into multiple GitHub accounts in your browser, the GitHub authorization screen will prompt you to select which account you want to link to IssuePilot.
                             </p>
+                            <!-- Image illustrating the account selection screen -->
+                            <div class="mb-6">
+                                <img 
+                                    src="assets/accountselect.png" 
+                                    alt="Screenshot of GitHub account selection screen" 
+                                    class="w-full h-auto rounded-lg shadow-xl border border-gray-200 object-contain max-w-sm mx-auto"
+                                >
+                            </div>
 
                             <h4 class="font-semibold text-gray-800 mb-2">Steps:</h4>
                             <ol class="list-decimal list-inside space-y-2 text-gray-700">
@@ -186,7 +209,8 @@
             const statusTextSpan = document.getElementById('status-text');
             const statusIcon = document.getElementById('status-icon');
             
-            const API_URL = 'https://api.githubstatus.com/api/v2/status.json';
+            // Using www.githubstatus.com instead of api.githubstatus.com to potentially resolve ERR_NAME_NOT_RESOLVED
+            const API_URL = 'https://www.githubstatus.com/api/v2/status.json';
 
             const setStatus = (description, iconName, bgColor, textColor) => {
                 statusTextSpan.textContent = description;
@@ -221,7 +245,8 @@
 
             } catch (error) {
                 console.error('Failed to fetch GitHub status:', error);
-                setStatus('Status Unavailable', 'x-circle', 'bg-red-100', 'text-red-800');
+                // Set status clearly to indicate a network issue.
+                setStatus('Network Error', 'cloud-off', 'bg-red-100', 'text-red-800');
             }
         };
 
