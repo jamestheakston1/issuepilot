@@ -285,7 +285,7 @@
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'github',
                 options: {
-                    redirectTo: window.location.origin + window.location.pathname
+                    redirectTo: window.location.origin + '/comingsoon.html'
                 }
             });
 
