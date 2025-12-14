@@ -125,6 +125,7 @@
                                 <img 
                                     src="assets/authorisescreen.png" 
                                     alt="Screenshot of the GitHub authorization screen for IssuePilot" 
+                                    onerror="this.onerror=null; this.src='https://placehold.co/400x250/3b82f6/ffffff?text=GitHub+Auth+Screen+Placeholder';"
                                     class="w-full max-w-lg mx-auto h-auto rounded-lg shadow-xl border border-gray-200 object-contain"
                                 >
                             </div>
@@ -141,6 +142,7 @@
                                 <img 
                                     src="assets/accountselect.png" 
                                     alt="Screenshot of GitHub account selection screen" 
+                                    onerror="this.onerror=null; this.src='https://placehold.co/300x200/3b82f6/ffffff?text=Account+Selection+Placeholder';"
                                     class="w-full h-auto rounded-lg shadow-xl border border-gray-200 object-contain max-w-sm mx-auto"
                                 >
                             </div>
@@ -171,16 +173,12 @@
                         <h3 class="text-xl font-semibold mb-3 text-gray-900">Video Guide</h3>
                         
                         <div class="relative bg-gray-900 rounded-xl overflow-hidden shadow-2xl aspect-video">
-                            <video 
-                                id="video-player"
-                                class="w-full h-full object-cover"
-                                controls
-                                preload="metadata"
-                                disablepictureinpicture 
-                            >
-                                <source src="assets/deletetutorial.mp4" type="video/mp4"> 
-                                <p class="text-white p-4">Your browser doesn't support the video tag, or the video file (assets/deletetutorial.mp4) could not be loaded.</p>
-                            </video>
+                            <!-- Placeholder for video since external assets are not allowed -->
+                             <div class="absolute inset-0 flex flex-col items-center justify-center text-white p-4">
+                                <i data-feather="video-off" class="w-16 h-16 mb-4 opacity-50"></i>
+                                <p class="text-lg opacity-80 text-center">Video content cannot be loaded in this environment. Please use the guide button below.</p>
+                            </div>
+                            <!-- END Placeholder -->
                         </div>
                         
                         <div class="mt-4 p-4 bg-gray-100 border border-gray-200 rounded-xl text-center">
@@ -189,8 +187,7 @@
                             </p>
                             
                             <button id="pip-tutorial-btn" class="w-full sm:w-auto inline-flex items-center justify-center bg-green-500 text-white py-2 px-6 rounded-lg font-semibold hover:bg-green-600 transition duration-150 shadow-md mb-4">
-                                <i data-feather="monitor" class="w-4 h-4 mr-2"></i>
-                                Open website and play tutorial in PiP
+                                <i data-feather="external-link" class="w-4 h-4 mr-2"></i> Open GitHub Settings Page
                             </button>
                             
                             <a href="https://github.com/settings/connections/applications/Ov23lie813N9LAMIwrVR" target="_blank" class="inline-block bg-primary-blue text-white py-2 px-4 rounded-lg font-mono text-sm hover:bg-blue-600 transition duration-150 break-all shadow-md">
@@ -198,7 +195,7 @@
                             </a>
                         </div>
                         
-                        <p class="text-sm text-gray-500 mt-2">The video shows the step-by-step process of preparing your account for deletion.</p>
+                        <p class="text-sm text-gray-500 mt-2">This link directs you to the GitHub settings page required to revoke IssuePilot access.</p>
                     </section>
                 </div>
 
@@ -219,7 +216,6 @@
                             Continue with GitHub
                         </button>
                         
-                        <!-- Updated explanatory text below the button -->
                         <p class="text-sm text-gray-500 mt-4 max-w-sm mx-auto">
                             This authentication is specifically for the <strong> IssuePilot Developer </strong> service and is separate from your main IssuePilot account.
                         </p>
@@ -259,7 +255,7 @@
         </main>
     </div>
     
-    <!-- Floating Modal Structure (NEW) -->
+    <!-- Floating Modal Structure -->
     <div id="coming-soon-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
         <div class="bg-white p-8 rounded-xl shadow-2xl max-w-lg w-full text-center transform scale-100 transition-transform duration-300">
             <div class="text-primary-blue mb-4 mx-auto">
@@ -319,7 +315,7 @@
 
             usernameSpan.textContent = username || 'Developer';
             modal.classList.remove('hidden');
-            feather.replace(); // Ensure icons in the modal are rendered
+            feather.replace();
 
             const closeModal = () => {
                 modal.classList.add('hidden');
@@ -331,14 +327,12 @@
 
         const updateSession = (session) => {
             currentSession = session;
-            // The routing logic is now handled robustly in DOMContentLoaded and onAuthStateChange
         };
 
         const signInWithGitHub = async () => {
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'github',
                 options: {
-                    // This must match the URL you provided: https://issuepilot.pages.dev/docs#developer
                     redirectTo: window.location.origin + window.location.pathname + '#developer'
                 }
             });
@@ -356,7 +350,6 @@
                 alertMessage('Sign-out failed. Check the console for details.', 'error');
             } else {
                 alertMessage('Successfully signed out.', 'success');
-                // Force re-render of the developer page state
                 checkAuthAndRenderDeveloperPage();
             }
         };
@@ -372,24 +365,20 @@
                 lockedContent.classList.add('hidden');
                 consoleContent.classList.remove('hidden');
 
-                // Populate Username Data
                 const user = currentSession.user;
                 const githubUsername = user?.user_metadata?.user_name || 'Developer';
                 
                 usernameSpan.textContent = githubUsername;
 
-                // Re-attach sign-out listener whenever content is shown
                 const signOutBtn = document.getElementById('github-signout-btn');
                 if (signOutBtn) signOutBtn.addEventListener('click', signOutWithGitHub);
 
 
             } else {
-                // Not authenticated
                 usernameSpan.textContent = 'Developer'; 
                 lockedContent.classList.remove('hidden');
                 consoleContent.classList.add('hidden');
 
-                // Re-attach sign-in listener whenever content is shown
                 const loginBtn = document.getElementById('github-login-btn');
                 if (loginBtn) loginBtn.addEventListener('click', signInWithGitHub);
             }
@@ -441,52 +430,15 @@
         };
 
         const initPiP = () => {
-            const video = document.getElementById('video-player');
             const pipBtn = document.getElementById('pip-tutorial-btn');
             const GITHUB_LINK = "https://github.com/settings/connections/applications/Ov23lie813N9LAMIwrVR";
 
-            if (!video || !pipBtn || !document.pictureInPictureEnabled) {
-                if (pipBtn) {
-                    pipBtn.classList.add('hidden');
-                }
-                return;
-            }
+            if (!pipBtn) return;
 
-            video.addEventListener('leavepictureinpicture', () => {
-                video.loop = false;
-                video.currentTime = 0; 
-                video.pause(); 
-            });
-
-
-            pipBtn.addEventListener('click', async () => {
-                pipBtn.disabled = true;
-                const originalText = pipBtn.textContent;
-                pipBtn.innerHTML = '<i data-feather="loader" class="w-4 h-4 mr-2 animate-spin"></i> Starting...';
-                feather.replace();
-
-                try {
-                    video.loop = true;
-                    await video.play();
-
-                    await video.requestPictureInPicture();
-
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-
-                    window.open(GITHUB_LINK, '_blank');
-
-                } catch (error) {
-                    console.error("PiP or Playback failed. Falling back to opening the link.", error);
-                    video.loop = false;
-                    if (!video.paused) {
-                        video.pause();
-                    }
-                    window.open(GITHUB_LINK, '_blank');
-                } finally {
-                    pipBtn.innerHTML = originalText;
-                    pipBtn.disabled = false;
-                    feather.replace();
-                }
+            // Update button text and function since external video assets are not used
+            pipBtn.innerHTML = '<i data-feather="external-link" class="w-4 h-4 mr-2"></i> Open GitHub Settings Page';
+            pipBtn.addEventListener('click', () => {
+                 window.open(GITHUB_LINK, '_blank');
             });
         };
 
@@ -500,13 +452,6 @@
                 if (page.id === targetPageId) {
                     page.classList.remove('hidden');
                     window.scrollTo(0, 0);
-                    
-                    if (pageId !== 'deleting-account') {
-                        const video = document.getElementById('video-player');
-                        if (video && !video.paused) {
-                            video.pause();
-                        }
-                    }
                 } else {
                     page.classList.add('hidden');
                 }
@@ -533,11 +478,10 @@
             feather.replace();
             fetchGitHubStatus();
 
-            // 1. Get initial session state synchronously to initialize currentSession
             const { data: { session } } = await supabase.auth.getSession();
             currentSession = session;
             
-            // 2. Set up the reliable session change listener
+            // Set up the session change listener
             supabase.auth.onAuthStateChange((event, session) => {
                 const isAuthenticated = !!session;
                 console.log(`[Supabase Auth] Event: ${event}. Session Active: ${isAuthenticated}`);
@@ -547,25 +491,19 @@
                 if (event === 'SIGNED_IN') {
                     if (isAuthenticated) {
                         const githubUsername = session.user?.user_metadata?.user_name || 'Developer';
-                        // Show modal on sign-in, regardless of current page
+                        
+                        // 1. Keep the full Supabase hash in the URL.
+                        
+                        // 2. Update the UI to show the overview page
+                        setActiveLink('overview');
+                        
+                        // 3. Show the "Coming Soon" modal
                         showComingSoonModal(githubUsername); 
                     }
                 }
 
-                // This must run every time to ensure the developer page reflects the auth state
                 checkAuthAndRenderDeveloperPage();
             });
-
-            // Initial setup for buttons (re-attached dynamically by checkAuthAndRenderDeveloperPage if needed)
-            const loginBtn = document.getElementById('github-login-btn');
-            if (loginBtn) {
-                loginBtn.addEventListener('click', signInWithGitHub);
-            }
-            
-            const signOutBtn = document.getElementById('github-signout-btn');
-            if (signOutBtn) {
-                signOutBtn.addEventListener('click', signOutWithGitHub);
-            }
 
             const sidebar = document.getElementById('sidebar');
             const menuToggleButton = document.getElementById('menu-toggle-button');
@@ -587,29 +525,26 @@
                 });
             });
 
-            // --- START Robust Hash Extraction & Routing ---
+            // --- Initial Routing ---
+            let targetId = 'overview';
             const hashString = window.location.hash.substring(1);
-            let targetId = 'overview'; // Default
 
-            // Check for the known fragments within the entire hash string
-            if (hashString.includes('developer')) {
+            // Determine which page to show based on the hash, ignoring auth tokens for routing purposes
+            if (hashString.includes('developer') && !hashString.includes('access_token')) {
+                // Only route to developer if it's a clean fragment (not the auth redirect)
                 targetId = 'developer';
             } else if (hashString.includes('linking')) {
                 targetId = 'linking';
             } else if (hashString.includes('deleting-account')) {
                 targetId = 'deleting-account';
-            } else if (hashString.includes('overview')) {
+            } else if (hashString.includes('access_token')) {
+                // If we see auth tokens on load, we assume a redirect just happened, 
+                // so we default to overview unless the SIGNED_IN handler overrides it.
                 targetId = 'overview';
             }
             
             setActiveLink(targetId);
-            
-            // Cleanup the URL hash if it contains auth tokens (or is otherwise messy)
-            if (hashString.includes('access_token') || hashString.includes('type=')) {
-                // This clears the auth tokens but preserves the routed page ID (e.g., #developer)
-                history.replaceState(null, null, '#' + targetId);
-            }
-            // --- END Robust Hash Extraction & Routing ---
+            // --- END Initial Routing ---
 
             
             sidebarLinks.forEach(link => {
@@ -619,20 +554,14 @@
                     
                     setActiveLink(linkId);
                     
-                    if (window.location.hash.substring(1) !== linkId) {
+                    // Update URL hash only for clean navigation, not during initial Supabase redirect handling
+                    if (!hashString.includes('access_token') && window.location.hash.substring(1) !== linkId) {
                         history.pushState(null, null, '#' + linkId);
                     }
                 });
             });
 
             initPiP();
-
-            const video = document.getElementById('video-player');
-            if (video) {
-                video.addEventListener('contextmenu', function(e) {
-                    e.preventDefault(); 
-                });
-            }
         });
     </script>
 
