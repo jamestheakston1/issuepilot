@@ -245,10 +245,10 @@
                         <div class="p-6 bg-gray-100 rounded-lg max-w-lg mx-auto border-l-4 border-yellow-500">
                             <h4 class="text-2xl font-bold text-yellow-700 mb-2 flex items-center justify-center">
                                 <i data-feather="tool" class="w-6 h-6 mr-2"></i>
-                                Coming Soon
+                                Section Coming Soon
                             </h4>
                             <p class="text-base text-gray-700">
-                                The full API documentation and token generation console will be available shortly. Stay tuned!
+                                The full API documentation and token generation console are currently under construction and will be available shortly.
                             </p>
                         </div>
                     </section>
@@ -257,6 +257,31 @@
                 
             </div>
         </main>
+    </div>
+    
+    <!-- Floating Modal Structure (NEW) -->
+    <div id="coming-soon-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-lg w-full text-center transform scale-100 transition-transform duration-300">
+            <div class="text-primary-blue mb-4 mx-auto">
+                <i data-feather="terminal" class="w-12 h-12 mx-auto"></i>
+            </div>
+            <h3 class="text-3xl font-bold text-gray-900 mb-2">Developer Integration</h3>
+            <p class="text-xl text-gray-600 mb-8">
+                Welcome, <span id="modal-github-username" class="font-semibold text-primary-blue">Developer</span>!
+            </p>
+            <div class="p-6 bg-gray-100 rounded-lg border-l-4 border-yellow-500">
+                <h4 class="text-2xl font-bold text-yellow-700 mb-2 flex items-center justify-center">
+                    <i data-feather="tool" class="w-6 h-6 mr-2"></i>
+                    Section Coming Soon
+                </h4>
+                <p class="text-base text-gray-700">
+                    Thank you for signing in. The full Developer API documentation and console are currently under construction and will be available shortly.
+                </p>
+            </div>
+            <button id="modal-close-btn" class="mt-8 bg-primary-blue text-white py-2 px-6 rounded-lg font-semibold hover:bg-blue-600 transition duration-150 shadow-md">
+                Got It
+            </button>
+        </div>
     </div>
 
     <script type="module">
@@ -283,6 +308,25 @@
                 alertBox.classList.add('opacity-0', 'translate-x-full');
                 setTimeout(() => alertBox.remove(), 500);
             }, 4000);
+        };
+
+        const showComingSoonModal = (username) => {
+            const modal = document.getElementById('coming-soon-modal');
+            const usernameSpan = document.getElementById('modal-github-username');
+            const closeBtn = document.getElementById('modal-close-btn');
+
+            if (!modal) return;
+
+            usernameSpan.textContent = username || 'Developer';
+            modal.classList.remove('hidden');
+            feather.replace(); // Ensure icons in the modal are rendered
+
+            const closeModal = () => {
+                modal.classList.add('hidden');
+                closeBtn.removeEventListener('click', closeModal);
+            };
+            
+            closeBtn.addEventListener('click', closeModal);
         };
 
         const updateSession = (session) => {
@@ -334,11 +378,20 @@
                 
                 usernameSpan.textContent = githubUsername;
 
+                // Re-attach sign-out listener whenever content is shown
+                const signOutBtn = document.getElementById('github-signout-btn');
+                if (signOutBtn) signOutBtn.addEventListener('click', signOutWithGitHub);
+
+
             } else {
                 // Not authenticated
                 usernameSpan.textContent = 'Developer'; 
                 lockedContent.classList.remove('hidden');
                 consoleContent.classList.add('hidden');
+
+                // Re-attach sign-in listener whenever content is shown
+                const loginBtn = document.getElementById('github-login-btn');
+                if (loginBtn) loginBtn.addEventListener('click', signInWithGitHub);
             }
         };
 
@@ -491,15 +544,19 @@
 
                 updateSession(session);
                 
-                if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-                    // Only show the success alert if the session is authenticated 
-                    if (isAuthenticated && window.location.hash.substring(1).includes('developer')) {
-                        alertMessage('Successfully connected with GitHub!', 'success');
-                        checkAuthAndRenderDeveloperPage(); // Force update if already on the developer page
+                if (event === 'SIGNED_IN') {
+                    if (isAuthenticated) {
+                        const githubUsername = session.user?.user_metadata?.user_name || 'Developer';
+                        // Show modal on sign-in, regardless of current page
+                        showComingSoonModal(githubUsername); 
                     }
                 }
+
+                // This must run every time to ensure the developer page reflects the auth state
+                checkAuthAndRenderDeveloperPage();
             });
 
+            // Initial setup for buttons (re-attached dynamically by checkAuthAndRenderDeveloperPage if needed)
             const loginBtn = document.getElementById('github-login-btn');
             if (loginBtn) {
                 loginBtn.addEventListener('click', signInWithGitHub);
