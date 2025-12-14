@@ -254,7 +254,8 @@
     <script type="module">
         
         const SUPABASE_URL = 'https://syczfzloslkszzpuvcre.supabase.co'; 
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5Y3pmemxvc2xrc3p6cHV2Y3JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2MTQwMjUsImV4cCI6MjA4MTE5MDAyNX0.vy8urIWxuwuaEYCjfHiK8X4x_bafrw';
+        // FIX: The user provided a different key in their debug message which resolves the 401 error.
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5Y3pmemxvc2xrc3p6cHV2Y3JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2MTQwMjUsImV4cCI6MjA4MTE5MDAyNX0.vy8urIWxuwuaEYCjfHiWQUyBYKDXdhGiK8X4x_bafrw';
         const APP_SIGNATURE = '';
 
         const form = document.getElementById('issue-form');
@@ -507,14 +508,6 @@
                     renderIssues(data.items);
                 } else {
                     const errorData = await response.json();
-                    
-                    if (response.status === 401) {
-                         showNotification(`Authentication Failed (401). Your GitHub access token may be expired or invalid. Signing you out...`, 'error');
-                         await signOut();
-                         renderIssues(null); 
-                         return;
-                    }
-
                     showNotification(`Failed to fetch issues: ${errorData.message || response.statusText}`, 'error');
                     renderIssues(null); 
                 }
@@ -907,17 +900,6 @@
             feather.replace();
             loadingSpinner.classList.remove('hidden');
 
-            // FIX 1: Aggressively clear stale Supabase keys from local storage 
-            // to prevent 401 errors when retrieving a new session after OAuth.
-            try {
-                const keysToRemove = Object.keys(localStorage).filter(key => key.startsWith('sb-'));
-                if (keysToRemove.length > 0) {
-                    keysToRemove.forEach(key => localStorage.removeItem(key));
-                }
-            } catch (e) {
-                console.error("Failed to clear local storage keys:", e);
-            }
-
             authButton.addEventListener('click', () => {
                 if (githubAccessToken) {
                     signOut();
@@ -987,8 +969,24 @@
                 }
             });
 
+            // FIX 1: Aggressively clear stale Supabase keys from local storage 
+            // to prevent 401 errors when retrieving a new session after OAuth.
+            try {
+                const keysToRemove = Object.keys(localStorage).filter(key => key.startsWith('sb-'));
+                if (keysToRemove.length > 0) {
+                    keysToRemove.forEach(key => localStorage.removeItem(key));
+                }
+            } catch (e) {
+                console.error("Failed to clear local storage keys:", e);
+            }
+
             supabase.auth.getSession().then(({ data: { session } }) => {
                 updateUI(session);
+
+                // FIX 2: Clear the URL hash immediately after processing the session.
+                if (window.location.hash) {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
             });
 
             supabase.auth.onAuthStateChange((event, session) => {
