@@ -78,7 +78,7 @@
 
         <div id="notification-box" class="hidden p-3 mb-6 rounded-lg text-sm transition-opacity duration-300" role="alert"></div>
 
-        <div id="auth-area" class="flex justify-center items-center mb-6 p-4 border rounded-lg bg-gh-bg">
+        <div id="auth-area" class="flex flex-col justify-center items-center space-y-3 mb-6 p-4 border rounded-lg bg-gh-bg">
             <div id="user-profile" class="hidden items-center space-x-3">
                 <img id="user-avatar" class="w-8 h-8 rounded-full" src="" alt="User Avatar" onerror="this.onerror=null;this.src='https://placehold.co/32x32/cccccc/333333?text=User'">
                 <span id="user-name" class="font-semibold text-gh-dark"></span>
@@ -102,6 +102,12 @@
                 <i data-feather="github" class="w-5 h-5"></i>
                 <span id="auth-button-text">Connect with GitHub</span>
             </button>
+            
+            <a id="help-link" href="/linkingaccount.html" 
+               class="flex items-center space-x-1 text-sm text-gray-500 hover:text-gh-blue transition duration-150">
+                <i data-feather="external-link" class="w-4 h-4"></i>
+                <span>Trouble linking? Click here for help</span>
+            </a>
         </div>
 
         <div id="loading-spinner" class="hidden text-center py-10 text-gh-blue">
@@ -258,26 +264,6 @@
         </div>
     </div>
     
-    <div id="repo-not-found-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full relative">
-            <h3 class="text-xl font-bold mb-3 text-red-600 flex items-center space-x-2 border-b pb-2">
-                 <i data-feather="alert-triangle" class="w-6 h-6 text-red-600"></i>
-                 <span>Repository Not Found (404)</span>
-            </h3>
-            <p class="text-gray-700 mb-4">
-                The repository <code><span id="not-found-repo-name" class="font-mono font-semibold"></span></code> does not exist, is private, or you do not have permission to create issues in it.
-            </p>
-            
-            <p class="text-gray-600 mb-6 font-semibold">
-                Please check the repository owner/name format and ensure you have write access.
-            </p>
-            
-            <button id="close-repo-not-found-modal" class="w-full px-4 py-2 bg-gh-blue text-white font-semibold rounded-lg shadow-md hover:bg-opacity-90 transition">
-                <span>Understood</span>
-            </button>
-        </div>
-    </div>
-    
     <div id="issue-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-40 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl relative flex flex-col h-5/6">
             <header class="p-5 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
@@ -399,10 +385,7 @@
         const modalComments = document.getElementById('modal-comments');
         const modalCommentsLoading = document.getElementById('modal-comments-loading');
         const modalGithubLink = document.getElementById('modal-github-link');
-        
-        const repoNotFoundModal = document.getElementById('repo-not-found-modal');
-        const notFoundRepoName = document.getElementById('not-found-repo-name');
-        const closeRepoNotFoundModal = document.getElementById('close-repo-not-found-modal');
+        const helpLink = document.getElementById('help-link'); // ADDED: New help link element
 
         let currentMentionQuery = '';
         let mentionStartIndex = -1;
@@ -442,6 +425,45 @@
                 clearTimeout(timer);
                 timer = setTimeout(() => { func.apply(this, args); }, timeout);
             };
+        }
+
+        function getIssuesFromLocalStorage() {
+            try {
+                const issuesJson = localStorage.getItem(ISSUE_HISTORY_KEY);
+                return issuesJson ? JSON.parse(issuesJson) : [];
+            } catch (e) {
+                console.error("Could not retrieve issues from localStorage", e);
+                return [];
+            }
+        }
+
+        function saveIssuesToLocalStorage(issues) {
+             try {
+                localStorage.setItem(ISSUE_HISTORY_KEY, JSON.stringify(issues));
+            } catch (e) {
+                console.error("Could not save issues to localStorage", e);
+            }
+        }
+        
+        function saveIssueToLocalStorage(issueData) {
+            const existingIssues = getIssuesFromLocalStorage();
+            
+            const newIssue = {
+                id: `local-${Date.now()}`,
+                number: 'pending',
+                title: issueData.title,
+                state: 'open', 
+                created_at: new Date().toISOString(),
+                repository_url: `https://api.github.com/repos/${issueData.owner}/${issueData.repo}`,
+                url: '#', 
+                html_url: '#',
+                source: 'local'
+            };
+
+            const updatedIssues = [newIssue, ...existingIssues];
+            saveIssuesToLocalStorage(updatedIssues);
+            
+            return newIssue;
         }
 
         function switchView(view) {
@@ -567,6 +589,13 @@
                  return;
             }
             
+            // FIX: Check for the local placeholder URL
+            if (issueApiUrl === '#') {
+                issueModal.classList.add('hidden');
+                showNotification('This is a local copy. Full GitHub details are not available yet. Please wait for the next sync or ensure it was successfully created on GitHub.', 'warning');
+                return;
+            }
+
             issueModal.classList.remove('hidden');
             
             modalTitle.textContent = 'Loading Issue...';
@@ -727,44 +756,6 @@
             feather.replace();
         }
 
-        function getIssuesFromLocalStorage() {
-            try {
-                const issuesJson = localStorage.getItem(ISSUE_HISTORY_KEY);
-                return issuesJson ? JSON.parse(issuesJson) : [];
-            } catch (e) {
-                console.error("Could not retrieve issues from localStorage", e);
-                return [];
-            }
-        }
-
-        function saveIssuesToLocalStorage(issues) {
-             try {
-                localStorage.setItem(ISSUE_HISTORY_KEY, JSON.stringify(issues));
-            } catch (e) {
-                console.error("Could not save issues to localStorage", e);
-            }
-        }
-        
-        function saveIssueToLocalStorage(issueData) {
-            const existingIssues = getIssuesFromLocalStorage();
-            
-            const newIssue = {
-                id: `local-${Date.now()}`,
-                number: 'pending',
-                title: issueData.title,
-                state: 'open', 
-                created_at: new Date().toISOString(),
-                repository_url: `https://api.github.com/repos/${issueData.owner}/${issueData.repo}`,
-                url: '#', 
-                html_url: '#',
-                source: 'local'
-            };
-
-            const updatedIssues = [newIssue, ...existingIssues];
-            saveIssuesToLocalStorage(updatedIssues);
-            
-            return newIssue;
-        }
 
         async function fetchUserIssues(username) {
             if (!username || !githubAccessToken) {
@@ -805,6 +796,7 @@
                     
                     combinedIssues.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
+                    // Only save the successfully fetched GitHub issues to clear old placeholders
                     saveIssuesToLocalStorage(githubIssues);
                     renderIssues(combinedIssues);
                 } else {
@@ -830,12 +822,16 @@
                 const userMetadata = user.user_metadata || {};
                 githubUsername = userMetadata.user_name;
 
-                authArea.classList.remove('justify-center');
-                authArea.classList.add('justify-between');
-                
+                // NEW: Adjust authArea for signed-in (horizontal) layout
+                authArea.classList.remove('justify-center', 'flex-col', 'space-y-3');
+                authArea.classList.add('justify-between', 'flex-row');
+
                 userProfile.classList.remove('hidden');
                 userProfile.classList.add('flex');
                 
+                // NEW: Hide the help link when signed in
+                helpLink.classList.add('hidden');
+
                 userName.textContent = githubUsername || user.email || 'GitHub User';
                 userAvatar.src = userMetadata.avatar_url || 'https://placehold.co/32x32/cccccc/333333?text=U';
                 
@@ -855,13 +851,17 @@
                 githubAccessToken = null;
                 githubUsername = null;
 
-                authArea.classList.remove('justify-between');
-                authArea.classList.add('justify-center');
+                // NEW: Adjust authArea for signed-out (vertical) layout
+                authArea.classList.remove('justify-between', 'flex-row');
+                authArea.classList.add('justify-center', 'flex-col', 'space-y-3');
 
                 userProfile.classList.add('hidden');
                 userProfile.classList.remove('flex');
                 issuesListView.classList.add('hidden');
                 form.classList.add('hidden');
+                
+                // NEW: Show the help link when signed out
+                helpLink.classList.remove('hidden');
                 
                 authButton.innerHTML = `<i data-feather="github" class="w-5 h-5"></i><span id="auth-button-text">${signInText}</span>`;
                 authButton.classList.remove('bg-red-500');
@@ -1110,7 +1110,7 @@
             submitButton.innerHTML = `<i data-feather="loader" class="w-5 h-5 animate-spin"></i><span>Creating Issue...</span>`;
             feather.replace();
             
-            saveIssueToLocalStorage({ owner, repo, title: titleValue }); 
+            saveIssueToLocalStorage({ owner, repo, title: titleValue }); // ADDED: Save local copy
 
             bodyValue = bodyValue + '\n\n' + APP_SIGNATURE;
 
@@ -1183,17 +1183,11 @@
                     fetchUserIssues(githubUsername);
                     
                 } else {
-                    if (response.status === 404) {
-                        notFoundRepoName.textContent = repoValue;
-                        repoNotFoundModal.classList.remove('hidden');
-                        showNotification(`Failed to create issue: Repository Not Found (404).`, 'error');
-                    } else {
-                        let errorMessage = data.message || `Failed to create issue. Status: ${response.status}`;
-                        if (data.documentation_url) {
-                            errorMessage += ` Check logs for details.`;
-                        }
-                        showNotification(errorMessage, 'error');
+                    let errorMessage = data.message || `Failed to create issue. Status: ${response.status}`;
+                    if (data.documentation_url) {
+                        errorMessage += ` Check logs for details.`;
                     }
+                    showNotification(errorMessage, 'error');
                 }
 
             } catch (error) {
@@ -1228,19 +1222,16 @@
             
             imageUpload.addEventListener('change', handleImageUpload);
             
+            // Close the issue details modal
             closeModalButton.addEventListener('click', () => {
                 issueModal.classList.add('hidden');
             });
             
+            // Close modal when clicking outside
             issueModal.addEventListener('click', (e) => {
                 if (e.target === issueModal) {
                     issueModal.classList.add('hidden');
                 }
-            });
-            
-            closeRepoNotFoundModal.addEventListener('click', () => {
-                repoNotFoundModal.classList.add('hidden');
-                repoInput.focus();
             });
 
             mentionButton.addEventListener('click', () => {
