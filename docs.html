@@ -173,12 +173,10 @@
                         <h3 class="text-xl font-semibold mb-3 text-gray-900">Video Guide</h3>
                         
                         <div class="relative bg-gray-900 rounded-xl overflow-hidden shadow-2xl aspect-video">
-                            <!-- Placeholder for video since external assets are not allowed -->
                              <div class="absolute inset-0 flex flex-col items-center justify-center text-white p-4">
                                 <i data-feather="video-off" class="w-16 h-16 mb-4 opacity-50"></i>
                                 <p class="text-lg opacity-80 text-center">Video content cannot be loaded in this environment. Please use the guide button below.</p>
                             </div>
-                            <!-- END Placeholder -->
                         </div>
                         
                         <div class="mt-4 p-4 bg-gray-100 border border-gray-200 rounded-xl text-center">
@@ -202,7 +200,6 @@
                 <div id="page-developer" class="content-page hidden">
                     <h2 class="text-3xl font-extrabold text-gray-900 mb-8">Developer Integration</h2>
                     
-                    <!-- LOCKED CONTENT (Default view if no session) -->
                     <section id="developer-locked-content" class="bg-white p-12 rounded-xl shadow-lg text-center border-t-4 border-red-500">
                         <div class="text-red-500 mb-4 mx-auto">
                             <i data-feather="lock" class="w-12 h-12 mx-auto"></i>
@@ -221,7 +218,6 @@
                         </p>
                     </section>
 
-                    <!-- AUTHENTICATED CONTENT (Coming Soon view) -->
                     <section id="developer-authenticated-console" class="hidden bg-white p-12 rounded-xl shadow-lg border-t-4 border-primary-blue text-center">
                         <div class="flex justify-end">
                             <button id="github-signout-btn" class="inline-flex items-center text-sm font-semibold text-red-600 hover:text-red-800 transition duration-150">
@@ -255,36 +251,11 @@
         </main>
     </div>
     
-    <!-- Floating Modal Structure -->
-    <div id="coming-soon-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
-        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-lg w-full text-center transform scale-100 transition-transform duration-300">
-            <div class="text-primary-blue mb-4 mx-auto">
-                <i data-feather="terminal" class="w-12 h-12 mx-auto"></i>
-            </div>
-            <h3 class="text-3xl font-bold text-gray-900 mb-2">Developer Integration</h3>
-            <p class="text-xl text-gray-600 mb-8">
-                Welcome, <span id="modal-github-username" class="font-semibold text-primary-blue">Developer</span>!
-            </p>
-            <div class="p-6 bg-gray-100 rounded-lg border-l-4 border-yellow-500">
-                <h4 class="text-2xl font-bold text-yellow-700 mb-2 flex items-center justify-center">
-                    <i data-feather="tool" class="w-6 h-6 mr-2"></i>
-                    Section Coming Soon
-                </h4>
-                <p class="text-base text-gray-700">
-                    Thank you for signing in. The full Developer API documentation and console are currently under construction and will be available shortly.
-                </p>
-            </div>
-            <button id="modal-close-btn" class="mt-8 bg-primary-blue text-white py-2 px-6 rounded-lg font-semibold hover:bg-blue-600 transition duration-150 shadow-md">
-                Got It
-            </button>
-        </div>
-    </div>
-
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.42.2/+esm';
 
         const SUPABASE_URL = 'https://eygyqnvwburavclwknwv.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5Z3lxbnZ3YnVyYXZjbHdrbnd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3MTEyNTEsImV4cCI6MjA4MTI4NzI1MX0.iT2xt46c1RvqSkMpxiR5Z89DjVkYm5OirxD2CKrveOo';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5Z3lxbnZ3YnVyYXZjbHdrbnd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3MTEyNTEsImV4cCI6MjA4MTI4NzI1MX0.iT2xt46c1RvqSkMpxiR5Z899DjVkYm5OirxD2CKrveOo';
         const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let currentSession = null;
@@ -306,25 +277,6 @@
             }, 4000);
         };
 
-        const showComingSoonModal = (username) => {
-            const modal = document.getElementById('coming-soon-modal');
-            const usernameSpan = document.getElementById('modal-github-username');
-            const closeBtn = document.getElementById('modal-close-btn');
-
-            if (!modal) return;
-
-            usernameSpan.textContent = username || 'Developer';
-            modal.classList.remove('hidden');
-            feather.replace();
-
-            const closeModal = () => {
-                modal.classList.add('hidden');
-                closeBtn.removeEventListener('click', closeModal);
-            };
-            
-            closeBtn.addEventListener('click', closeModal);
-        };
-
         const updateSession = (session) => {
             currentSession = session;
         };
@@ -333,7 +285,6 @@
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'github',
                 options: {
-                    // Redirects to the base path, allowing Supabase to append tokens as the only hash value
                     redirectTo: window.location.origin + window.location.pathname
                 }
             });
@@ -351,7 +302,6 @@
                 alertMessage('Sign-out failed. Check the console for details.', 'error');
             } else {
                 alertMessage('Successfully signed out.', 'success');
-                // The onAuthStateChange listener will handle the UI update after sign out
             }
         };
         
@@ -371,7 +321,6 @@
                 
                 usernameSpan.textContent = githubUsername;
 
-                // Ensure sign out button is correctly set up
                 const signOutBtn = document.getElementById('github-signout-btn');
                 if (signOutBtn) {
                     signOutBtn.removeEventListener('click', signOutWithGitHub);
@@ -384,7 +333,6 @@
                 lockedContent.classList.remove('hidden');
                 consoleContent.classList.add('hidden');
 
-                // Ensure login button is correctly set up
                 const loginBtn = document.getElementById('github-login-btn');
                 if (loginBtn) {
                     loginBtn.removeEventListener('click', signInWithGitHub);
@@ -490,21 +438,22 @@
             currentSession = session;
             
             const hashString = window.location.hash.substring(1);
-            let handledRedirect = false;
 
-            // Step 1: Check for Supabase redirect tokens immediately upon load
-            if (hashString.includes('access_token') && currentSession) {
-                console.log('[Auth] Handling immediate sign-in redirect and showing modal.');
-                const githubUsername = currentSession.user?.user_metadata?.user_name || 'Developer';
-                
-                // Set UI to Overview and show modal
-                setActiveLink('overview');
-                showComingSoonModal(githubUsername); 
-                handledRedirect = true;
+            let targetId = 'overview';
+            
+            if (currentSession) {
+                console.log('[Auth] Session detected. Defaulting to Developer page view.');
+                targetId = 'developer';
+            } else if (hashString.includes('developer')) {
+                targetId = 'developer';
+            } else if (hashString.includes('linking')) {
+                targetId = 'linking';
+            } else if (hashString.includes('deleting-account')) {
+                targetId = 'deleting-account';
             }
+            
+            setActiveLink(targetId);
 
-
-            // Step 2: Set up the session change listener (primarily for SIGNED_OUT event)
             supabase.auth.onAuthStateChange((event, session) => {
                 updateSession(session);
                 
@@ -512,7 +461,6 @@
                     console.log('[Auth] User signed out. Checking developer page status.');
                 }
                 
-                // Re-check developer page state on any auth change
                 checkAuthAndRenderDeveloperPage();
             });
 
@@ -536,22 +484,6 @@
                 });
             });
 
-            // Step 3: Initial Routing (only runs if not handling a redirect)
-            if (!handledRedirect) {
-                let targetId = 'overview';
-
-                if (hashString.includes('developer')) {
-                    targetId = 'developer';
-                } else if (hashString.includes('linking')) {
-                    targetId = 'linking';
-                } else if (hashString.includes('deleting-account')) {
-                    targetId = 'deleting-account';
-                }
-                
-                setActiveLink(targetId);
-            }
-            
-            // Step 4: Add navigation handlers
             sidebarLinks.forEach(link => {
                 link.addEventListener('click', (e) => {
                     e.preventDefault();
@@ -559,7 +491,6 @@
                     
                     setActiveLink(linkId);
                     
-                    // Update URL hash only for clean navigation
                     if (window.location.hash.substring(1) !== linkId) {
                         history.pushState(null, null, '#' + linkId);
                     }
