@@ -333,7 +333,7 @@
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'github',
                 options: {
-                    redirectTo: window.location.origin + window.location.pathname + '#developer'
+                    redirectTo: window.location.origin + window.location.pathname
                 }
             });
 
@@ -435,7 +435,6 @@
 
             if (!pipBtn) return;
 
-            // Update button text and function since external video assets are not used
             pipBtn.innerHTML = '<i data-feather="external-link" class="w-4 h-4 mr-2"></i> Open GitHub Settings Page';
             pipBtn.addEventListener('click', () => {
                  window.open(GITHUB_LINK, '_blank');
@@ -481,7 +480,6 @@
             const { data: { session } } = await supabase.auth.getSession();
             currentSession = session;
             
-            // Set up the session change listener
             supabase.auth.onAuthStateChange((event, session) => {
                 const isAuthenticated = !!session;
                 console.log(`[Supabase Auth] Event: ${event}. Session Active: ${isAuthenticated}`);
@@ -492,12 +490,12 @@
                     if (isAuthenticated) {
                         const githubUsername = session.user?.user_metadata?.user_name || 'Developer';
                         
-                        // 1. Keep the full Supabase hash in the URL.
+                        // Keep the full Supabase hash in the URL.
                         
-                        // 2. Update the UI to show the overview page
+                        // Update the UI to show the overview page
                         setActiveLink('overview');
                         
-                        // 3. Show the "Coming Soon" modal
+                        // Show the "Coming Soon" modal
                         showComingSoonModal(githubUsername); 
                     }
                 }
@@ -525,27 +523,22 @@
                 });
             });
 
-            // --- Initial Routing ---
             let targetId = 'overview';
             const hashString = window.location.hash.substring(1);
 
-            // Determine which page to show based on the hash, ignoring auth tokens for routing purposes
             if (hashString.includes('developer') && !hashString.includes('access_token')) {
-                // Only route to developer if it's a clean fragment (not the auth redirect)
                 targetId = 'developer';
             } else if (hashString.includes('linking')) {
                 targetId = 'linking';
             } else if (hashString.includes('deleting-account')) {
                 targetId = 'deleting-account';
             } else if (hashString.includes('access_token')) {
-                // If we see auth tokens on load, we assume a redirect just happened, 
-                // so we default to overview unless the SIGNED_IN handler overrides it.
+                // If auth tokens exist, default the UI to overview, but keep the URL hash.
                 targetId = 'overview';
             }
             
             setActiveLink(targetId);
-            // --- END Initial Routing ---
-
+            
             
             sidebarLinks.forEach(link => {
                 link.addEventListener('click', (e) => {
@@ -554,7 +547,8 @@
                     
                     setActiveLink(linkId);
                     
-                    // Update URL hash only for clean navigation, not during initial Supabase redirect handling
+                    // Only update the hash if we are navigating away from a Supabase token hash, 
+                    // or if it's a regular navigation. 
                     if (!hashString.includes('access_token') && window.location.hash.substring(1) !== linkId) {
                         history.pushState(null, null, '#' + linkId);
                     }
