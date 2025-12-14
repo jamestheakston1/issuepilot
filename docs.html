@@ -352,7 +352,6 @@
 
         const updateSession = (session) => {
             currentSession = session;
-            console.log("Supabase Session Updated. Authenticated:", !!currentSession);
 
             if (window.location.hash.substring(1) === 'developer') {
                 checkAuthAndRenderDeveloperPage();
@@ -556,15 +555,24 @@
             feather.replace();
             fetchGitHubStatus();
 
+            // 1. Get initial session state synchronously to initialize currentSession
             const { data: { session } } = await supabase.auth.getSession();
-            updateSession(session);
+            currentSession = session;
             
+            // 2. Set up the reliable session change listener
             supabase.auth.onAuthStateChange((event, session) => {
+                const isAuthenticated = !!session;
+                console.log(`[Supabase Auth] Event: ${event}. Session Active: ${isAuthenticated}`);
+
                 updateSession(session);
-                if (event === 'SIGNED_IN' && window.location.hash.substring(1) === 'developer') {
-                    alertMessage('Successfully connected with GitHub!', 'success');
-                    // Check auth again immediately to render the new console with data
-                    checkAuthAndRenderDeveloperPage(); 
+                
+                if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+                    // Only show the success alert if the session is authenticated 
+                    // AND we are on the developer page hash (as is the case after redirect)
+                    if (isAuthenticated && window.location.hash.substring(1).includes('developer')) {
+                        alertMessage('Successfully connected with GitHub!', 'success');
+                        checkAuthAndRenderDeveloperPage();
+                    }
                 }
             });
 
