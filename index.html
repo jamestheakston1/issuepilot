@@ -255,7 +255,7 @@
         
         const SUPABASE_URL = 'https://syczfzloslkszzpuvcre.supabase.co'; 
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5Y3pmemxvc2xrc3p6cHV2Y3JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2MTQwMjUsImV4cCI6MjA4MTE5MDAyNX0.vy8urIWxuwuaEYCjfHiK8X4x_bafrw';
-        const APP_SIGNATURE = '<!-- Created by IssuePilot-app -->';
+        const APP_SIGNATURE = '';
 
         const form = document.getElementById('issue-form');
         const issuesListView = document.getElementById('issues-list-view');
@@ -507,6 +507,14 @@
                     renderIssues(data.items);
                 } else {
                     const errorData = await response.json();
+                    
+                    if (response.status === 401) {
+                         showNotification(`Authentication Failed (401). Your GitHub access token may be expired or invalid. Signing you out...`, 'error');
+                         await signOut();
+                         renderIssues(null); 
+                         return;
+                    }
+
                     showNotification(`Failed to fetch issues: ${errorData.message || response.statusText}`, 'error');
                     renderIssues(null); 
                 }
