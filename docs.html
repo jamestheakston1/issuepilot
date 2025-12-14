@@ -333,6 +333,7 @@
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'github',
                 options: {
+                    // Redirects to the base path, allowing Supabase to append tokens as the only hash value
                     redirectTo: window.location.origin + window.location.pathname
                 }
             });
@@ -350,7 +351,7 @@
                 alertMessage('Sign-out failed. Check the console for details.', 'error');
             } else {
                 alertMessage('Successfully signed out.', 'success');
-                checkAuthAndRenderDeveloperPage();
+                // The onAuthStateChange listener will handle the UI update after sign out
             }
         };
         
@@ -370,8 +371,12 @@
                 
                 usernameSpan.textContent = githubUsername;
 
+                // Ensure sign out button is correctly set up
                 const signOutBtn = document.getElementById('github-signout-btn');
-                if (signOutBtn) signOutBtn.addEventListener('click', signOutWithGitHub);
+                if (signOutBtn) {
+                    signOutBtn.removeEventListener('click', signOutWithGitHub);
+                    signOutBtn.addEventListener('click', signOutWithGitHub);
+                }
 
 
             } else {
@@ -379,8 +384,12 @@
                 lockedContent.classList.remove('hidden');
                 consoleContent.classList.add('hidden');
 
+                // Ensure login button is correctly set up
                 const loginBtn = document.getElementById('github-login-btn');
-                if (loginBtn) loginBtn.addEventListener('click', signInWithGitHub);
+                if (loginBtn) {
+                    loginBtn.removeEventListener('click', signInWithGitHub);
+                    loginBtn.addEventListener('click', signInWithGitHub);
+                }
             }
         };
 
@@ -480,26 +489,30 @@
             const { data: { session } } = await supabase.auth.getSession();
             currentSession = session;
             
-            supabase.auth.onAuthStateChange((event, session) => {
-                const isAuthenticated = !!session;
-                console.log(`[Supabase Auth] Event: ${event}. Session Active: ${isAuthenticated}`);
+            const hashString = window.location.hash.substring(1);
+            let handledRedirect = false;
 
+            // Step 1: Check for Supabase redirect tokens immediately upon load
+            if (hashString.includes('access_token') && currentSession) {
+                console.log('[Auth] Handling immediate sign-in redirect and showing modal.');
+                const githubUsername = currentSession.user?.user_metadata?.user_name || 'Developer';
+                
+                // Set UI to Overview and show modal
+                setActiveLink('overview');
+                showComingSoonModal(githubUsername); 
+                handledRedirect = true;
+            }
+
+
+            // Step 2: Set up the session change listener (primarily for SIGNED_OUT event)
+            supabase.auth.onAuthStateChange((event, session) => {
                 updateSession(session);
                 
-                if (event === 'SIGNED_IN') {
-                    if (isAuthenticated) {
-                        const githubUsername = session.user?.user_metadata?.user_name || 'Developer';
-                        
-                        // Keep the full Supabase hash in the URL.
-                        
-                        // Update the UI to show the overview page
-                        setActiveLink('overview');
-                        
-                        // Show the "Coming Soon" modal
-                        showComingSoonModal(githubUsername); 
-                    }
+                if (event === 'SIGNED_OUT') {
+                    console.log('[Auth] User signed out. Checking developer page status.');
                 }
-
+                
+                // Re-check developer page state on any auth change
                 checkAuthAndRenderDeveloperPage();
             });
 
@@ -523,23 +536,22 @@
                 });
             });
 
-            let targetId = 'overview';
-            const hashString = window.location.hash.substring(1);
+            // Step 3: Initial Routing (only runs if not handling a redirect)
+            if (!handledRedirect) {
+                let targetId = 'overview';
 
-            if (hashString.includes('developer') && !hashString.includes('access_token')) {
-                targetId = 'developer';
-            } else if (hashString.includes('linking')) {
-                targetId = 'linking';
-            } else if (hashString.includes('deleting-account')) {
-                targetId = 'deleting-account';
-            } else if (hashString.includes('access_token')) {
-                // If auth tokens exist, default the UI to overview, but keep the URL hash.
-                targetId = 'overview';
+                if (hashString.includes('developer')) {
+                    targetId = 'developer';
+                } else if (hashString.includes('linking')) {
+                    targetId = 'linking';
+                } else if (hashString.includes('deleting-account')) {
+                    targetId = 'deleting-account';
+                }
+                
+                setActiveLink(targetId);
             }
             
-            setActiveLink(targetId);
-            
-            
+            // Step 4: Add navigation handlers
             sidebarLinks.forEach(link => {
                 link.addEventListener('click', (e) => {
                     e.preventDefault();
@@ -547,9 +559,8 @@
                     
                     setActiveLink(linkId);
                     
-                    // Only update the hash if we are navigating away from a Supabase token hash, 
-                    // or if it's a regular navigation. 
-                    if (!hashString.includes('access_token') && window.location.hash.substring(1) !== linkId) {
+                    // Update URL hash only for clean navigation
+                    if (window.location.hash.substring(1) !== linkId) {
                         history.pushState(null, null, '#' + linkId);
                     }
                 });
