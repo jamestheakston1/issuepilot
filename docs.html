@@ -434,6 +434,17 @@
             const videoElement = document.querySelector('#page-deleting-account video');
 
             if (githubSettingsBtn && videoElement) {
+                
+                // Autoplay when PiP is entered
+                videoElement.addEventListener('enterpictureinpicture', () => {
+                    videoElement.play(); 
+                });
+
+                // Pause when PiP is exited, ensuring it stops if the user didn't pause manually
+                videoElement.addEventListener('leavepictureinpicture', () => {
+                    videoElement.pause();
+                });
+                
                 githubSettingsBtn.addEventListener('click', async () => {
                     if (!document.pictureInPictureEnabled) {
                         alertMessage('Picture-in-Picture is not supported by your browser.', 'error');
@@ -443,6 +454,7 @@
                     
                     try {
                         // 1. Request Picture-in-Picture
+                        // The 'enterpictureinpicture' listener handles the play() call now.
                         await videoElement.requestPictureInPicture();
                         
                         // 2. Alert the user 
