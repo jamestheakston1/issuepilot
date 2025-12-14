@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE ahtml>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -33,10 +33,20 @@
 </head>
 <body class="bg-gray-50 text-gray-800">
 
-    <header class="fixed top-0 left-0 right-0 h-16 bg-white shadow-md z-30 flex items-center justify-between px-4 lg:justify-start">
+    <header class="fixed top-0 left-0 right-0 h-16 bg-white shadow-md z-30 flex items-center justify-between px-4">
+        <!-- Left side: Mobile Menu Button -->
         <button id="menu-toggle-button" class="lg:hidden p-2 rounded-lg text-sidebar-dark hover:bg-gray-100 transition duration-150">
             <i data-feather="menu" class="w-6 h-6"></i>
         </button>
+
+        <!-- Right side: Status Display -->
+        <div id="status-container" class="flex items-center text-sm font-medium text-gray-600 ml-auto">
+            <span class="hidden sm:inline mr-2">IssuePilot Status:</span>
+            <div id="github-status" class="flex items-center space-x-1 p-1 px-3 rounded-full bg-gray-200">
+                <i id="status-icon" data-feather="loader" class="w-4 h-4 mr-1 animate-spin"></i>
+                <span id="status-text">Loading...</span>
+            </div>
+        </div>
     </header>
 
     <div class="flex">
@@ -141,9 +151,9 @@
                             <video 
                                 id="video-player"
                                 class="w-full h-full object-cover"
-                                poster="https://placehold.co/1280x720/1f2937/9ca3af?text=Deleting+Account+Tutorial+Video"
                                 controls
-                                autoplay
+                                preload="metadata"
+                                disablepictureinpicture 
                             >
                                 <source src="assets/deletetutorial.mp4" type="video/mp4"> 
                                 <p class="text-white p-4">Your browser doesn't support the video tag, or the video file (assets/deletetutorial.mp4) could not be loaded.</p>
@@ -156,15 +166,14 @@
                                 To follow along with this tutorial, please open the required GitHub settings page:
                             </p>
                             
-                            <a href="https://github.com/settings/connections/applications/Ov23lie813N9LAMIwrVR" target="_blank" class="inline-block bg-primary-blue text-white py-2 px-4 rounded-lg font-mono text-sm hover:bg-blue-600 transition duration-150 break-all shadow-md mb-4">
-                                https://github.com/settings/connections/applications/Ov23lie813N9LAMIwrVR
-                            </a>
-
-                            <!-- New PiP Button -->
-                            <button id="pip-tutorial-btn" class="w-full sm:w-auto inline-flex items-center justify-center bg-green-500 text-white py-2 px-6 rounded-lg font-semibold hover:bg-green-600 transition duration-150 shadow-md">
+                            <button id="pip-tutorial-btn" class="w-full sm:w-auto inline-flex items-center justify-center bg-green-500 text-white py-2 px-6 rounded-lg font-semibold hover:bg-green-600 transition duration-150 shadow-md mb-4">
                                 <i data-feather="monitor" class="w-4 h-4 mr-2"></i>
                                 Open website and play tutorial in PiP
                             </button>
+                            
+                            <a href="https://github.com/settings/connections/applications/Ov23lie813N9LAMIwrVR" target="_blank" class="inline-block bg-primary-blue text-white py-2 px-4 rounded-lg font-mono text-sm hover:bg-blue-600 transition duration-150 break-all shadow-md">
+                                https://github.com/settings/connections/applications/Ov23lie813N9LAMIwrVR
+                            </a>
                         </div>
                         
                         <p class="text-sm text-gray-500 mt-2">The video shows the step-by-step process of preparing your account for deletion.</p>
@@ -176,13 +185,61 @@
     </div>
 
     <script>
-        // PiP Initialization
+        // Function to fetch and display GitHub Status
+        const fetchGitHubStatus = async () => {
+            const statusDiv = document.getElementById('github-status');
+            const statusTextSpan = document.getElementById('status-text');
+            const statusIcon = document.getElementById('status-icon');
+            
+            // Updated API URL to use a CORS proxy to prevent "Failed to fetch" errors
+            const API_URL = 'https://corsproxy.io/?https://api.githubstatus.com/api/v2/status.json';
+
+            // Helper to apply status styles
+            const setStatus = (description, iconName, bgColor, textColor) => {
+                statusTextSpan.textContent = description;
+                // Rebuild classes to apply new styles
+                statusDiv.className = `flex items-center space-x-1 p-1 px-3 rounded-full transition-colors duration-300 ${bgColor} ${textColor}`;
+                statusIcon.setAttribute('data-feather', iconName);
+                statusIcon.classList.remove('animate-spin');
+                feather.replace(); // Re-render icon
+            };
+
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) {
+                    // If the proxy or GitHub returns an error status
+                    throw new Error('API or proxy network response was not ok');
+                }
+                const data = await response.json();
+                const { indicator, description } = data.status;
+
+                // Map indicator to styles
+                switch (indicator) {
+                    case 'none':
+                        setStatus('Operational', 'check-circle', 'bg-green-100', 'text-green-800');
+                        break;
+                    case 'minor':
+                        setStatus(description || 'Degraded Performance', 'alert-triangle', 'bg-yellow-100', 'text-yellow-800');
+                        break;
+                    case 'major':
+                    case 'critical':
+                        setStatus(description || 'Service Disruption', 'alert-octagon', 'bg-red-100', 'text-red-800');
+                        break;
+                    default:
+                        setStatus('Unknown', 'help-circle', 'bg-gray-200', 'text-gray-600');
+                }
+
+            } catch (error) {
+                console.error('Failed to fetch GitHub status:', error);
+                setStatus('Status Unavailable', 'x-circle', 'bg-red-100', 'text-red-800');
+            }
+        };
+
         const initPiP = () => {
             const video = document.getElementById('video-player');
             const pipBtn = document.getElementById('pip-tutorial-btn');
             const GITHUB_LINK = "https://github.com/settings/connections/applications/Ov23lie813N9LAMIwrVR";
 
-            // If PiP is not supported, hide the button
             if (!video || !pipBtn || !document.pictureInPictureEnabled) {
                 if (pipBtn) {
                     pipBtn.classList.add('hidden');
@@ -190,7 +247,6 @@
                 return;
             }
 
-            // Listener to handle exiting PiP mode
             video.addEventListener('leavepictureinpicture', () => {
                 video.loop = false;
                 video.currentTime = 0; 
@@ -199,28 +255,22 @@
 
 
             pipBtn.addEventListener('click', async () => {
-                // Disable button temporarily to prevent rapid clicks
                 pipBtn.disabled = true;
                 const originalText = pipBtn.textContent;
                 pipBtn.innerHTML = '<i data-feather="loader" class="w-4 h-4 mr-2 animate-spin"></i> Starting...';
                 feather.replace();
 
                 try {
-                    // 1. Start video playback and enable loop
                     video.loop = true;
                     await video.play();
 
-                    // 2. Request PiP mode
                     await video.requestPictureInPicture();
 
-                    // 3. Wait 2 seconds
                     await new Promise(resolve => setTimeout(resolve, 2000));
 
-                    // 4. Open website in a new tab
                     window.open(GITHUB_LINK, '_blank');
 
                 } catch (error) {
-                    // Log error but attempt to open the link as a fallback
                     console.error("PiP or Playback failed. Falling back to opening the link.", error);
                     video.loop = false;
                     if (!video.paused) {
@@ -228,7 +278,6 @@
                     }
                     window.open(GITHUB_LINK, '_blank');
                 } finally {
-                    // Re-enable button and restore original text
                     pipBtn.innerHTML = originalText;
                     pipBtn.disabled = false;
                     feather.replace();
@@ -239,6 +288,7 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             feather.replace();
+            fetchGitHubStatus(); // Initialize status fetch
 
             const sidebar = document.getElementById('sidebar');
             const menuToggleButton = document.getElementById('menu-toggle-button');
@@ -271,7 +321,6 @@
                         window.scrollTo(0, 0);
                         
                         if (pageId !== 'deleting-account') {
-                            // Pause video when navigating away from the 'deleting-account' page
                             const video = document.getElementById('video-player');
                             if (video && !video.paused) {
                                 video.pause();
@@ -295,23 +344,8 @@
                 }
             };
 
-            const getQueryParameter = (name) => {
-                const params = new URLSearchParams(window.location.search);
-                return params.get(name);
-            };
-            
-            const sectionParam = getQueryParameter('section');
             const initialHash = window.location.hash.substring(1);
-
-            let targetId = initialHash || 'overview'; 
-
-            if (sectionParam) {
-                const validSections = ['overview', 'linking', 'deleting-account'];
-                const lowerCaseSection = sectionParam.toLowerCase();
-                if (validSections.includes(lowerCaseSection)) {
-                    targetId = lowerCaseSection;
-                }
-            }
+            const targetId = initialHash || 'overview'; 
             
             setActiveLink(targetId);
             
@@ -330,8 +364,15 @@
                 });
             });
 
-            // Initialize PiP functionality
             initPiP();
+
+            const video = document.getElementById('video-player');
+            
+            if (video) {
+                video.addEventListener('contextmenu', function(e) {
+                    e.preventDefault(); 
+                });
+            }
         });
     </script>
 
