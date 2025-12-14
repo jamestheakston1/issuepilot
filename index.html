@@ -20,6 +20,8 @@
                         'gh-dark': '#1f2328',
                         'gh-success': '#2da44e',
                         'gh-warning': '#f0b047',
+                        'gh-open': '#2da44e',
+                        'gh-closed': '#8250df',
                     }
                 }
             }
@@ -51,9 +53,14 @@
             border-radius: 8px;
             background-color: #ffffff;
             transition: box-shadow 0.15s ease-in-out;
+            cursor: pointer; /* Add pointer for click */
         }
         .issue-card:hover {
             box-shadow: 0 1px 4px rgba(27, 31, 35, 0.1);
+        }
+        .modal-body {
+            max-height: 70vh;
+            overflow-y: auto;
         }
     </style>
 </head>
@@ -96,9 +103,6 @@
                 <span id="auth-button-text">Connect with GitHub</span>
             </button>
         </div>
-        
-        <div id="github-status-indicator" class="text-center mb-6 hidden">
-            </div>
 
         <div id="loading-spinner" class="hidden text-center py-10 text-gh-blue">
             <i data-feather="loader" class="w-8 h-8 animate-spin mx-auto mb-2"></i>
@@ -109,7 +113,7 @@
             
             <div id="issues-list-view" class="hidden space-y-4">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-semibold text-gh-primary">Your Local Issue History</h2>
+                    <h2 class="text-2xl font-semibold text-gh-primary">Your IssuePilot History</h2>
                     <button id="new-issue-button"
                             class="flex items-center space-x-2 px-3 py-2 bg-gh-blue text-white font-semibold rounded-lg shadow-md hover:bg-opacity-90 transition duration-150">
                         <i data-feather="plus" class="w-5 h-5"></i>
@@ -119,11 +123,11 @@
                 
                 <div id="issues-loading" class="text-center py-6 hidden">
                     <i data-feather="loader" class="w-6 h-6 animate-spin mx-auto text-gray-500"></i>
-                    <p class="text-gray-500 mt-2">Loading issues...</p>
+                    <p class="text-gray-500 mt-2">Loading issues created by IssuePilot...</p>
                 </div>
                 
                 <div id="issues-empty" class="text-center py-6 hidden">
-                    <p class="text-gray-500 italic">No issues found in local history. Create one to start tracking!</p>
+                    <p class="text-gray-500 italic">No issues found created by IssuePilot.</p>
                 </div>
                 
                 <div id="issues-container" class="space-y-3">
@@ -174,21 +178,6 @@
                     </div>
                 </div>
                 
-                <div class="border border-dashed border-gray-300 p-4 rounded-lg bg-gray-50">
-                    <label for="image-upload" class="block text-sm font-medium text-gh-primary mb-2 flex items-center space-x-2">
-                        <i data-feather="image" class="w-4 h-4 text-gh-blue"></i>
-                        <span>Attach Image (Embeds as Base64 in description)</span>
-                    </label>
-                    <input type="file" id="image-upload" accept="image/*" class="w-full text-sm text-gray-500
-                        file:mr-4 file:py-2 file:px-4
-                        file:rounded-full file:border-0
-                        file:text-sm file:font-semibold
-                        file:bg-gh-blue/10 file:text-gh-blue
-                        hover:file:bg-gh-blue/20 transition duration-150
-                    ">
-                    <p class="mt-2 text-xs text-gray-500">Note: The image is converted to a large Base64 string and appended to the issue description. Max 5MB file size.</p>
-                </div>
-
                 <div>
                     <label for="labels-input" class="block text-sm font-medium text-gh-primary mb-1">Labels (e.g., bug, enhancement, priority:high)</label>
                     <div class="relative">
@@ -254,13 +243,82 @@
         </div>
     </div>
 
+    <div id="issue-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-40 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl relative flex flex-col h-5/6">
+            <header class="p-5 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
+                <div class="flex items-center space-x-3 overflow-hidden">
+                    <h3 id="modal-title" class="text-xl font-bold text-gh-primary truncate"></h3>
+                    <div id="modal-state" class="px-3 py-1 text-sm font-semibold rounded-full flex items-center space-x-1 flex-shrink-0"></div>
+                </div>
+                <button id="close-modal-button" class="p-2 rounded-full hover:bg-gray-200 transition duration-150" aria-label="Close modal">
+                    <i data-feather="x" class="w-6 h-6 text-gray-500"></i>
+                </button>
+            </header>
+
+            <div class="modal-body p-5 space-y-6 flex-grow">
+                <div id="modal-repo-info" class="text-sm text-gray-500"></div>
+                
+                <section>
+                    <h4 class="text-lg font-semibold text-gh-primary mb-2 flex items-center space-x-2">
+                        <i data-feather="align-left" class="w-4 h-4 text-gh-dark"></i>
+                        <span>Description</span>
+                    </h4>
+                    <div id="modal-body-content" class="p-3 bg-gh-bg rounded-lg text-gray-700 whitespace-pre-wrap"></div>
+                </section>
+                
+                <div class="grid sm:grid-cols-2 gap-6">
+                    <section>
+                        <h4 class="text-lg font-semibold text-gh-primary mb-2 flex items-center space-x-2">
+                            <i data-feather="users" class="w-4 h-4 text-gh-dark"></i>
+                            <span>Assignees</span>
+                        </h4>
+                        <div id="modal-assignees" class="flex flex-wrap gap-2">
+                            <span class="text-sm text-gray-500 italic">None assigned.</span>
+                        </div>
+                    </section>
+
+                    <section>
+                        <h4 class="text-lg font-semibold text-gh-primary mb-2 flex items-center space-x-2">
+                            <i data-feather="layers" class="w-4 h-4 text-gh-dark"></i>
+                            <span>Labels</span>
+                        </h4>
+                        <div id="modal-labels" class="flex flex-wrap gap-2">
+                            <span class="text-sm text-gray-500 italic">No labels.</span>
+                        </div>
+                    </section>
+                </div>
+                
+                <section>
+                    <h4 class="text-lg font-semibold text-gh-primary mb-2 flex items-center space-x-2">
+                        <i data-feather="message-circle" class="w-4 h-4 text-gh-dark"></i>
+                        <span>Comments</span>
+                    </h4>
+                    <div id="modal-comments" class="space-y-4">
+                        <div id="modal-comments-loading" class="text-center py-4 text-gray-500">
+                             <i data-feather="loader" class="w-5 h-5 animate-spin inline-block mr-2"></i>
+                            <span>Loading comments...</span>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+
+            <footer class="p-4 border-t border-gray-200 flex justify-end flex-shrink-0">
+                <a id="modal-github-link" target="_blank"
+                   class="flex items-center space-x-2 px-4 py-2 bg-gh-blue text-white font-semibold rounded-lg shadow-md hover:bg-opacity-90 transition duration-150">
+                    <i data-feather="external-link" class="w-5 h-5"></i>
+                    <span>View on GitHub</span>
+                </a>
+            </footer>
+        </div>
+    </div>
+
+
     <script type="module">
         
         const SUPABASE_URL = 'https://syczfzloslkszzpuvcre.supabase.co'; 
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5Y3pmemxvc2xrc3p6cHV2Y3JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2MTQwMjUsImV4cCI6MjA4MTE5MDAyNX0.vy8urIWxuwuaEYCjfHiWQUyBYKDXdhGiK8X4x_bafrw';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5Y3pmemxvc2xrc3p6cHV2Y3JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2MTQwMjUsImV4cCI6MjA4MTE5MDAyNX0.vy8urIWxuwuaEYCjfHiK8X4x_bafrw';
         const APP_SIGNATURE = '';
-        const LOCAL_STORAGE_KEY = 'issuePilotHistory'; 
-        const GITHUB_STATUS_API_URL = 'https://www.githubstatus.com/api/v2/summary.json'; // Official status API
 
         const form = document.getElementById('issue-form');
         const issuesListView = document.getElementById('issues-list-view');
@@ -288,14 +346,26 @@
         const modalYesButton = document.getElementById('modal-yes-button');
         const modalNoButton = document.getElementById('modal-no-button');
         const kebabMenu = document.getElementById('kebab-menu'); 
-        const imageUpload = document.getElementById('image-upload');
         const labelsInput = document.getElementById('labels-input');
         const assigneesInput = document.getElementById('assignees-input');
         const milestoneInput = document.getElementById('milestone-input');
         const mentionButton = document.getElementById('mention-button');
         const mentionSuggestionsContainer = document.getElementById('mention-suggestions-container');
-        const githubStatusIndicator = document.getElementById('github-status-indicator'); // New DOM element
         
+        // Modal Elements
+        const issueModal = document.getElementById('issue-modal');
+        const closeModalButton = document.getElementById('close-modal-button');
+        const modalTitle = document.getElementById('modal-title');
+        const modalState = document.getElementById('modal-state');
+        const modalRepoInfo = document.getElementById('modal-repo-info');
+        const modalBodyContent = document.getElementById('modal-body-content');
+        const modalAssignees = document.getElementById('modal-assignees');
+        const modalLabels = document.getElementById('modal-labels');
+        const modalComments = document.getElementById('modal-comments');
+        const modalCommentsLoading = document.getElementById('modal-comments-loading');
+        const modalGithubLink = document.getElementById('modal-github-link');
+
+
         let currentMentionQuery = '';
         let mentionStartIndex = -1;
         
@@ -346,89 +416,6 @@
             }
         }
 
-        /**
-         * LOCAL STORAGE FUNCTIONS
-         */
-        function getIssuesFromLocalStorage() {
-            try {
-                const issues = localStorage.getItem(LOCAL_STORAGE_KEY);
-                return issues ? JSON.parse(issues) : [];
-            } catch (error) {
-                console.error("Error reading from localStorage:", error);
-                return [];
-            }
-        }
-
-        function saveIssuesToLocalStorage(issues) {
-            try {
-                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(issues));
-            } catch (error) {
-                console.error("Error writing to localStorage:", error);
-                showNotification("Warning: Could not save issue history to local storage.", 'warning');
-            }
-        }
-        
-        /**
-         * GITHUB STATUS FUNCTIONS
-         */
-        function updateApiStatus(status, type = 'info') {
-            let dotClass = '';
-            let textClass = 'text-gray-600';
-
-            // Custom Tailwind colors gh-success, gh-warning, gh-dark
-            if (type === 'success') {
-                dotClass = 'bg-gh-success';
-                textClass = 'text-gh-success';
-            } else if (type === 'warning') {
-                dotClass = 'bg-gh-warning';
-                textClass = 'text-gh-dark';
-            } else if (type === 'error') {
-                dotClass = 'bg-red-500';
-                textClass = 'text-red-700';
-            } else {
-                dotClass = 'bg-gray-400';
-                textClass = 'text-gray-600';
-            }
-
-            githubStatusIndicator.innerHTML = `
-                <div class="flex items-center justify-center space-x-2 p-2 rounded-lg border border-gray-200 bg-gray-50/50">
-                    <span class="relative flex h-3 w-3">
-                        <span class="relative inline-flex rounded-full h-3 w-3 ${dotClass}"></span>
-                    </span>
-                    <span class="font-medium ${textClass}">GitHub API Status: ${status}</span>
-                </div>
-            `;
-            githubStatusIndicator.classList.remove('hidden');
-        }
-
-        async function fetchGitHubStatus() {
-            updateApiStatus('Checking...', 'info');
-
-            try {
-                const response = await fetch(GITHUB_STATUS_API_URL);
-                const data = await response.json();
-
-                const indicator = data.status.indicator; // 'none', 'minor', 'major', 'critical'
-                const description = data.status.description;
-
-                let statusType;
-                if (indicator === 'none') {
-                    statusType = 'success';
-                } else if (indicator === 'minor') {
-                    statusType = 'warning';
-                } else if (indicator === 'major' || indicator === 'critical') {
-                    statusType = 'error';
-                } else {
-                    statusType = 'info';
-                }
-
-                updateApiStatus(description, statusType);
-
-            } catch (error) {
-                updateApiStatus('Status Check Failed (Network Error)', 'error');
-            }
-        }
-        
         function handleSuggestionClick(repoFullName) {
             repoInput.value = repoFullName;
             renderRepoSuggestions([]);
@@ -545,37 +532,195 @@
                 issuesEmpty.classList.remove('hidden');
                 return;
             }
-            
-            // Sort issues by created_at date (most recent first)
-            issues.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
             issues.forEach(issue => {
-                const stateColor = issue.state === 'open' ? 'text-green-500' : 'text-red-500';
-                const stateIcon = issue.state === 'open' ? 'circle' : 'check-circle';
-                // issue.repository_url is the full API URL for the repository: https://api.github.com/repos/{owner}/{repo}
-                const repoPath = issue.repository_url ? issue.repository_url.split('/').slice(-2).join('/') : 'N/A';
+                const isOpen = issue.state === 'open';
+                const stateColor = isOpen ? 'text-gh-open' : 'text-gh-closed';
+                const stateBg = isOpen ? 'bg-gh-open/10' : 'bg-gh-closed/10';
+                const stateIcon = isOpen ? 'circle' : 'check-circle';
+                const repoPath = issue.repository_url.split('/').slice(-2).join('/');
                 const date = new Date(issue.created_at).toLocaleDateString();
 
-                const issueHtml = `
-                    <a href="${issue.html_url}" target="_blank" class="issue-card block">
-                        <div class="flex-shrink-0 mr-4">
-                            <i data-feather="${stateIcon}" class="w-4 h-4 ${stateColor}"></i>
+                const issueCard = document.createElement('div');
+                issueCard.className = 'issue-card block';
+                issueCard.setAttribute('data-issue-url', issue.url);
+                
+                issueCard.innerHTML = `
+                    <div class="flex-shrink-0 mr-4 mt-1">
+                        <i data-feather="${stateIcon}" class="w-4 h-4 ${stateColor}"></i>
+                    </div>
+                    <div class="flex-grow">
+                        <div class="flex items-baseline justify-between mb-1">
+                            <span class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">${repoPath}</span>
+                            <span class="px-2 py-0.5 text-xs font-semibold rounded-full ${stateBg} ${stateColor} flex items-center">
+                                <i data-feather="${stateIcon}" class="w-3 h-3 mr-1"></i>
+                                ${isOpen ? 'Open' : 'Closed'}
+                            </span>
                         </div>
-                        <div class="flex-grow">
-                            <p class="text-sm text-gray-500 mb-1">
-                                <span class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">${repoPath}</span>
-                                created on ${date}
-                            </p>
-                            <h3 class="text-lg font-semibold text-gh-primary hover:text-gh-blue transition-colors duration-150">${issue.title}</h3>
-                            <p class="text-sm text-gray-500 mt-1">#${issue.number} ${issue.state}</p>
-                        </div>
-                    </a>
+                        <h3 class="text-lg font-semibold text-gh-primary transition-colors duration-150">${issue.title}</h3>
+                        <p class="text-sm text-gray-500 mt-1">#${issue.number} created on ${date}</p>
+                    </div>
                 `;
-                issuesContainer.insertAdjacentHTML('beforeend', issueHtml);
+                
+                issueCard.addEventListener('click', () => fetchIssueDetails(issue.url));
+                issuesContainer.appendChild(issueCard);
             });
             feather.replace();
         }
         
+        async function fetchIssueDetails(issueApiUrl) {
+            if (!githubAccessToken) {
+                 showNotification('Please sign in to view issue details.', 'warning');
+                 return;
+            }
+            
+            issueModal.classList.remove('hidden');
+            
+            // Show loading state in the modal
+            modalTitle.textContent = 'Loading Issue...';
+            modalState.innerHTML = '';
+            modalBodyContent.textContent = '';
+            modalAssignees.innerHTML = `<i data-feather="loader" class="w-4 h-4 animate-spin text-gray-400"></i>`;
+            modalLabels.innerHTML = `<i data-feather="loader" class="w-4 h-4 animate-spin text-gray-400"></i>`;
+            modalComments.innerHTML = `<div id="modal-comments-loading" class="text-center py-4 text-gray-500"><i data-feather="loader" class="w-5 h-5 animate-spin inline-block mr-2"></i><span>Loading comments...</span></div>`;
+            feather.replace();
+
+
+            try {
+                const issueResponse = await fetch(issueApiUrl, {
+                    headers: { 'Authorization': `Bearer ${githubAccessToken}` }
+                });
+                
+                const commentsResponse = await fetch(`${issueApiUrl}/comments`, {
+                    headers: { 'Authorization': `Bearer ${githubAccessToken}` }
+                });
+
+                if (issueResponse.ok && commentsResponse.ok) {
+                    const issueData = await issueResponse.json();
+                    const commentsData = await commentsResponse.json();
+                    displayIssueModal(issueData, commentsData);
+                } else {
+                    showNotification('Failed to fetch issue details. Check repository access or API limits.', 'error');
+                    issueModal.classList.add('hidden');
+                }
+
+            } catch (error) {
+                showNotification('Network error while fetching issue details.', 'error');
+                issueModal.classList.add('hidden');
+            }
+        }
+
+        function displayIssueModal(issue, comments) {
+            const isOpen = issue.state === 'open';
+            const stateText = isOpen ? 'Open' : 'Closed';
+            const stateClass = isOpen ? 'bg-gh-open/20 text-gh-open' : 'bg-gh-closed/20 text-gh-closed';
+            const stateIcon = isOpen ? 'circle' : 'check-circle';
+            const repoPath = issue.repository_url.split('/').slice(-2).join('/');
+            const date = new Date(issue.created_at).toLocaleDateString();
+
+            modalTitle.textContent = `#${issue.number} ${issue.title}`;
+            modalState.className = `px-3 py-1 text-sm font-semibold rounded-full flex items-center space-x-1 flex-shrink-0 ${stateClass}`;
+            modalState.innerHTML = `<i data-feather="${stateIcon}" class="w-3 h-3"></i><span>${stateText}</span>`;
+            modalRepoInfo.innerHTML = `Created on <strong>${date}</strong> in repository <code>${repoPath}</code>`;
+            
+            // GitHub API returns GFM (GitHub Flavored Markdown) which includes the signature line.
+            // We strip the signature from the body display.
+            const cleanedBody = issue.body.replace(APP_SIGNATURE, '').trim();
+            modalBodyContent.textContent = cleanedBody || 'No description provided.';
+            
+            // Assignees
+            modalAssignees.innerHTML = '';
+            if (issue.assignees && issue.assignees.length > 0) {
+                issue.assignees.forEach(assignee => {
+                    modalAssignees.innerHTML += `
+                        <a href="${assignee.html_url}" target="_blank" class="flex items-center space-x-1 text-xs px-2 py-1 bg-gray-200 rounded-full hover:bg-gray-300 transition">
+                            <img src="${assignee.avatar_url}" class="w-4 h-4 rounded-full" alt="${assignee.login}">
+                            <span>@${assignee.login}</span>
+                        </a>
+                    `;
+                });
+            } else {
+                modalAssignees.innerHTML = `<span class="text-sm text-gray-500 italic">None assigned.</span>`;
+            }
+
+            // Labels
+            modalLabels.innerHTML = '';
+            if (issue.labels && issue.labels.length > 0) {
+                issue.labels.forEach(label => {
+                    const labelColor = label.color ? `#${label.color}` : '#fef2c0';
+                    const textColor = (parseInt(label.color, 16) > 0xffffff / 2) ? '#000000' : '#ffffff'; // Simple dark/light text heuristic
+                    modalLabels.innerHTML += `
+                        <span style="background-color: ${labelColor}; color: ${textColor};" class="text-xs font-semibold px-2 py-0.5 rounded-full inline-block" title="${label.description || label.name}">
+                            ${label.name}
+                        </span>
+                    `;
+                });
+            } else {
+                modalLabels.innerHTML = `<span class="text-sm text-gray-500 italic">No labels.</span>`;
+            }
+            
+            // Comments
+            modalComments.innerHTML = '';
+            if (comments && comments.length > 0) {
+                comments.forEach(comment => {
+                    modalComments.innerHTML += `
+                        <div class="border p-3 rounded-lg bg-white">
+                            <div class="flex items-center space-x-2 mb-2 border-b pb-2">
+                                <img src="${comment.user.avatar_url}" class="w-6 h-6 rounded-full" alt="${comment.user.login}">
+                                <span class="font-semibold text-gh-dark">@${comment.user.login}</span>
+                                <span class="text-xs text-gray-500">commented on ${new Date(comment.created_at).toLocaleDateString()}</span>
+                            </div>
+                            <p class="text-sm text-gray-700 whitespace-pre-wrap">${comment.body || 'No comment body.'}</p>
+                        </div>
+                    `;
+                });
+            } else {
+                 modalComments.innerHTML = `<p class="text-center py-4 text-gray-500 italic">No comments on this issue yet.</p>`;
+            }
+
+            // GitHub Link
+            modalGithubLink.href = issue.html_url;
+
+            feather.replace();
+            issueModal.classList.remove('hidden');
+        }
+
+
+        async function fetchUserIssues(username) {
+            if (!username || !githubAccessToken) return;
+
+            issuesContainer.innerHTML = '';
+            issuesEmpty.classList.add('hidden');
+            issuesLoading.classList.remove('hidden');
+            feather.replace();
+
+            const query = `author:${username} is:issue state:all in:body "${APP_SIGNATURE}"`; 
+            const apiUrl = `https://api.github.com/search/issues?q=${encodeURIComponent(query)}&sort=updated&order=desc`;
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${githubAccessToken}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    renderIssues(data.items);
+                } else {
+                    const errorData = await response.json();
+                    showNotification(`Failed to fetch issues: ${errorData.message || response.statusText}`, 'error');
+                    renderIssues(null); 
+                }
+            } catch (error) {
+                showNotification('Network error while fetching issues.', 'error');
+                renderIssues(null);
+            } finally {
+                issuesLoading.classList.add('hidden');
+            }
+        }
+
         function updateUI(session) {
             loadingSpinner.classList.add('hidden');
 
@@ -595,18 +740,16 @@
                 userName.textContent = githubUsername || user.email || 'GitHub User';
                 userAvatar.src = userMetadata.avatar_url || 'https://placehold.co/32x32/cccccc/333333?text=U';
                 
-                authButton.textContent = 'Sign Out';
+                authButton.innerHTML = `<i data-feather="log-out" class="w-5 h-5"></i><span id="auth-button-text">Sign Out</span>`;
                 authButton.classList.remove('bg-red-500');
                 authButton.classList.add('bg-gh-blue', 'sm:text-white'); 
                 
                 kebabButton.classList.remove('hidden');
 
-                showNotification(`Logged in as ${userName.textContent}. Loading local issue history...`, 'success');
+                showNotification(`Logged in as ${userName.textContent}. Loading your issue history...`, 'success');
                 
                 switchView('list');
-                
-                // Load and render issues from local storage immediately on sign-in
-                renderIssues(getIssuesFromLocalStorage());
+                fetchUserIssues(githubUsername);
 
 
             } else {
@@ -647,10 +790,6 @@
 
         async function signOut() {
             dropdownMenu.classList.add('hidden');
-            
-            // Clear local storage history on sign out for security/privacy
-            localStorage.removeItem(LOCAL_STORAGE_KEY);
-            showNotification('Signed out and cleared local issue history.', 'warning');
 
             const { error } = await supabase.auth.signOut();
             if (error) {
@@ -712,31 +851,6 @@
             textarea.focus();
         }
         
-        function handleImageUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            if (file.size > 1024 * 1024 * 5) { 
-                showNotification('Image size exceeds 5MB. Please choose a smaller file.', 'error');
-                imageUpload.value = ''; 
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const base64Image = e.target.result;
-                const markdown = `\n\n![${file.name}](${base64Image})\n\n`;
-                
-                bodyInput.value += markdown;
-                imageUpload.value = ''; 
-                showNotification(`Image "${file.name}" converted to Base64 and appended to description.`, 'success');
-            };
-            reader.onerror = () => {
-                showNotification('Failed to read image file.', 'error');
-            };
-            reader.readAsDataURL(file);
-        }
-
         function hideMentionDropdown() {
             mentionSuggestionsContainer.classList.add('hidden');
             currentMentionQuery = '';
@@ -933,21 +1047,14 @@
 
                     showNotification(notificationMessage, 'success');
                     
-                    // --- Local Storage Update Logic ---
-                    const issues = getIssuesFromLocalStorage();
-                    issues.unshift(data); // Add new issue to the beginning
-                    saveIssuesToLocalStorage(issues);
-                    
-                    // Reset form fields
                     titleInput.value = '';
                     bodyInput.value = '';
                     labelsInput.value = '';
                     assigneesInput.value = '';
                     milestoneInput.value = '';
-                    imageUpload.value = ''; // Clear file input
                     
                     switchView('list');
-                    renderIssues(issues); // Re-render from the updated local array
+                    fetchUserIssues(githubUsername);
                     
                 } else {
                     let errorMessage = data.message || `Failed to create issue. Status: ${response.status}`;
@@ -969,8 +1076,6 @@
         document.addEventListener('DOMContentLoaded', () => {
             feather.replace();
             loadingSpinner.classList.remove('hidden');
-            
-            fetchGitHubStatus(); // Check and display GitHub API status
 
             authButton.addEventListener('click', () => {
                 if (githubAccessToken) {
@@ -989,7 +1094,18 @@
             modalYesButton.addEventListener('click', handleModalYes);
             modalNoButton.addEventListener('click', handleModalNo);
             
-            imageUpload.addEventListener('change', handleImageUpload);
+            // Close the issue details modal
+            closeModalButton.addEventListener('click', () => {
+                issueModal.classList.add('hidden');
+            });
+            
+            // Close modal when clicking outside
+            issueModal.addEventListener('click', (e) => {
+                if (e.target === issueModal) {
+                    issueModal.classList.add('hidden');
+                }
+            });
+
 
             mentionButton.addEventListener('click', () => {
                 insertAtCursor(bodyInput, '@');
@@ -1041,22 +1157,8 @@
                 }
             });
 
-            // Clean up stale Supabase keys and clear hash
-            try {
-                const keysToRemove = Object.keys(localStorage).filter(key => key.startsWith('sb-'));
-                if (keysToRemove.length > 0) {
-                    keysToRemove.forEach(key => localStorage.removeItem(key));
-                }
-            } catch (e) {
-                console.error("Failed to clear local storage keys:", e);
-            }
-
             supabase.auth.getSession().then(({ data: { session } }) => {
                 updateUI(session);
-
-                if (window.location.hash) {
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                }
             });
 
             supabase.auth.onAuthStateChange((event, session) => {
