@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IssuePilot Documentation</title>
+    <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/feather-icons"></script>
     <style>
@@ -142,6 +143,7 @@
                                 class="w-full h-full object-cover"
                                 poster="https://placehold.co/1280x720/1f2937/9ca3af?text=Deleting+Account+Tutorial+Video"
                                 controls
+                                autoplay
                             >
                                 <source src="assets/deletetutorial.mp4" type="video/mp4"> 
                                 <p class="text-white p-4">Your browser doesn't support the video tag, or the video file (assets/deletetutorial.mp4) could not be loaded.</p>
@@ -188,6 +190,14 @@
                 return;
             }
 
+            // Listener to handle exiting PiP mode
+            video.addEventListener('leavepictureinpicture', () => {
+                video.loop = false;
+                video.currentTime = 0; 
+                video.pause(); 
+            });
+
+
             pipBtn.addEventListener('click', async () => {
                 // Disable button temporarily to prevent rapid clicks
                 pipBtn.disabled = true;
@@ -196,7 +206,8 @@
                 feather.replace();
 
                 try {
-                    // 1. Start video playback
+                    // 1. Start video playback and enable loop
+                    video.loop = true;
                     await video.play();
 
                     // 2. Request PiP mode
@@ -211,6 +222,7 @@
                 } catch (error) {
                     // Log error but attempt to open the link as a fallback
                     console.error("PiP or Playback failed. Falling back to opening the link.", error);
+                    video.loop = false;
                     if (!video.paused) {
                         video.pause();
                     }
