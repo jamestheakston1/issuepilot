@@ -53,7 +53,7 @@
             border-radius: 8px;
             background-color: #ffffff;
             transition: box-shadow 0.15s ease-in-out;
-            cursor: pointer; /* Add pointer for click */
+            cursor: pointer;
         }
         .issue-card:hover {
             box-shadow: 0 1px 4px rgba(27, 31, 35, 0.1);
@@ -178,6 +178,21 @@
                     </div>
                 </div>
                 
+                <div class="border border-dashed border-gray-300 p-4 rounded-lg bg-gray-50">
+                    <label for="image-upload" class="block text-sm font-medium text-gh-primary mb-2 flex items-center space-x-2">
+                        <i data-feather="image" class="w-4 h-4 text-gh-blue"></i>
+                        <span>Attach Image (Embeds as Base64 in description)</span>
+                    </label>
+                    <input type="file" id="image-upload" accept="image/*" class="w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-gh-blue/10 file:text-gh-blue
+                        hover:file:bg-gh-blue/20 transition duration-150
+                    ">
+                    <p class="mt-2 text-xs text-gray-500">Note: The image is converted to a large Base64 string and appended to the issue description. Max 5MB file size.</p>
+                </div>
+
                 <div>
                     <label for="labels-input" class="block text-sm font-medium text-gh-primary mb-1">Labels (e.g., bug, enhancement, priority:high)</label>
                     <div class="relative">
@@ -242,7 +257,7 @@
             </div>
         </div>
     </div>
-
+    
     <div id="issue-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-40 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl relative flex flex-col h-5/6">
             <header class="p-5 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
@@ -313,7 +328,6 @@
         </div>
     </div>
 
-
     <script type="module">
         
         const SUPABASE_URL = 'https://syczfzloslkszzpuvcre.supabase.co'; 
@@ -346,6 +360,7 @@
         const modalYesButton = document.getElementById('modal-yes-button');
         const modalNoButton = document.getElementById('modal-no-button');
         const kebabMenu = document.getElementById('kebab-menu'); 
+        const imageUpload = document.getElementById('image-upload');
         const labelsInput = document.getElementById('labels-input');
         const assigneesInput = document.getElementById('assignees-input');
         const milestoneInput = document.getElementById('milestone-input');
@@ -364,7 +379,6 @@
         const modalComments = document.getElementById('modal-comments');
         const modalCommentsLoading = document.getElementById('modal-comments-loading');
         const modalGithubLink = document.getElementById('modal-github-link');
-
 
         let currentMentionQuery = '';
         let mentionStartIndex = -1;
@@ -522,6 +536,122 @@
         const debouncedFetchRepos = debounce((query) => {
             fetchRepoSuggestions(query);
         }, 400);
+        
+        async function fetchIssueDetails(issueApiUrl) {
+            if (!githubAccessToken) {
+                 showNotification('Please sign in to view issue details.', 'warning');
+                 return;
+            }
+            
+            issueModal.classList.remove('hidden');
+            
+            // Show loading state in the modal
+            modalTitle.textContent = 'Loading Issue...';
+            modalState.innerHTML = '';
+            modalBodyContent.textContent = '';
+            modalAssignees.innerHTML = `<i data-feather="loader" class="w-4 h-4 animate-spin text-gray-400"></i>`;
+            modalLabels.innerHTML = `<i data-feather="loader" class="w-4 h-4 animate-spin text-gray-400"></i>`;
+            modalComments.innerHTML = `<div id="modal-comments-loading" class="text-center py-4 text-gray-500"><i data-feather="loader" class="w-5 h-5 animate-spin inline-block mr-2"></i><span>Loading comments...</span></div>`;
+            feather.replace();
+
+
+            try {
+                const issueResponse = await fetch(issueApiUrl, {
+                    headers: { 'Authorization': `Bearer ${githubAccessToken}` }
+                });
+                
+                // Fetch comments separately for detail view
+                const commentsResponse = await fetch(`${issueApiUrl}/comments`, {
+                    headers: { 'Authorization': `Bearer ${githubAccessToken}` }
+                });
+
+                if (issueResponse.ok && commentsResponse.ok) {
+                    const issueData = await issueResponse.json();
+                    const commentsData = await commentsResponse.json();
+                    displayIssueModal(issueData, commentsData);
+                } else {
+                    showNotification('Failed to fetch issue details. Check repository access or API limits.', 'error');
+                    issueModal.classList.add('hidden');
+                }
+
+            } catch (error) {
+                showNotification('Network error while fetching issue details.', 'error');
+                issueModal.classList.add('hidden');
+            }
+        }
+
+        function displayIssueModal(issue, comments) {
+            const isOpen = issue.state === 'open';
+            const stateText = isOpen ? 'Open' : 'Closed';
+            const stateClass = isOpen ? 'bg-gh-open/20 text-gh-open' : 'bg-gh-closed/20 text-gh-closed';
+            const stateIcon = isOpen ? 'circle' : 'check-circle';
+            const repoPath = issue.repository_url.split('/').slice(-2).join('/');
+            const date = new Date(issue.created_at).toLocaleDateString();
+
+            modalTitle.textContent = `#${issue.number} ${issue.title}`;
+            modalState.className = `px-3 py-1 text-sm font-semibold rounded-full flex items-center space-x-1 flex-shrink-0 ${stateClass}`;
+            modalState.innerHTML = `<i data-feather="${stateIcon}" class="w-3 h-3"></i><span>${stateText}</span>`;
+            modalRepoInfo.innerHTML = `Created on <strong>${date}</strong> in repository <code>${repoPath}</code>`;
+            
+            const cleanedBody = issue.body.replace(APP_SIGNATURE, '').trim();
+            modalBodyContent.textContent = cleanedBody || 'No description provided.';
+            
+            // Assignees
+            modalAssignees.innerHTML = '';
+            if (issue.assignees && issue.assignees.length > 0) {
+                issue.assignees.forEach(assignee => {
+                    modalAssignees.innerHTML += `
+                        <a href="${assignee.html_url}" target="_blank" class="flex items-center space-x-1 text-xs px-2 py-1 bg-gray-200 rounded-full hover:bg-gray-300 transition">
+                            <img src="${assignee.avatar_url}" class="w-4 h-4 rounded-full" alt="${assignee.login}">
+                            <span>@${assignee.login}</span>
+                        </a>
+                    `;
+                });
+            } else {
+                modalAssignees.innerHTML = `<span class="text-sm text-gray-500 italic">None assigned.</span>`;
+            }
+
+            // Labels
+            modalLabels.innerHTML = '';
+            if (issue.labels && issue.labels.length > 0) {
+                issue.labels.forEach(label => {
+                    const labelColor = label.color ? `#${label.color}` : '#fef2c0';
+                    const textColor = (parseInt(label.color, 16) > 0xffffff / 2) ? '#000000' : '#ffffff';
+                    modalLabels.innerHTML += `
+                        <span style="background-color: ${labelColor}; color: ${textColor};" class="text-xs font-semibold px-2 py-0.5 rounded-full inline-block" title="${label.description || label.name}">
+                            ${label.name}
+                        </span>
+                    `;
+                });
+            } else {
+                modalLabels.innerHTML = `<span class="text-sm text-gray-500 italic">No labels.</span>`;
+            }
+            
+            // Comments
+            modalComments.innerHTML = '';
+            if (comments && comments.length > 0) {
+                comments.forEach(comment => {
+                    modalComments.innerHTML += `
+                        <div class="border p-3 rounded-lg bg-white">
+                            <div class="flex items-center space-x-2 mb-2 border-b pb-2">
+                                <img src="${comment.user.avatar_url}" class="w-6 h-6 rounded-full" alt="${comment.user.login}">
+                                <span class="font-semibold text-gh-dark">@${comment.user.login}</span>
+                                <span class="text-xs text-gray-500">commented on ${new Date(comment.created_at).toLocaleDateString()}</span>
+                            </div>
+                            <p class="text-sm text-gray-700 whitespace-pre-wrap">${comment.body || 'No comment body.'}</p>
+                        </div>
+                    `;
+                });
+            } else {
+                 modalComments.innerHTML = `<p class="text-center py-4 text-gray-500 italic">No comments on this issue yet.</p>`;
+            }
+
+            // GitHub Link
+            modalGithubLink.href = issue.html_url;
+
+            feather.replace();
+            issueModal.classList.remove('hidden');
+        }
 
         function renderIssues(issues) {
             issuesContainer.innerHTML = '';
@@ -567,124 +697,6 @@
             });
             feather.replace();
         }
-        
-        async function fetchIssueDetails(issueApiUrl) {
-            if (!githubAccessToken) {
-                 showNotification('Please sign in to view issue details.', 'warning');
-                 return;
-            }
-            
-            issueModal.classList.remove('hidden');
-            
-            // Show loading state in the modal
-            modalTitle.textContent = 'Loading Issue...';
-            modalState.innerHTML = '';
-            modalBodyContent.textContent = '';
-            modalAssignees.innerHTML = `<i data-feather="loader" class="w-4 h-4 animate-spin text-gray-400"></i>`;
-            modalLabels.innerHTML = `<i data-feather="loader" class="w-4 h-4 animate-spin text-gray-400"></i>`;
-            modalComments.innerHTML = `<div id="modal-comments-loading" class="text-center py-4 text-gray-500"><i data-feather="loader" class="w-5 h-5 animate-spin inline-block mr-2"></i><span>Loading comments...</span></div>`;
-            feather.replace();
-
-
-            try {
-                const issueResponse = await fetch(issueApiUrl, {
-                    headers: { 'Authorization': `Bearer ${githubAccessToken}` }
-                });
-                
-                const commentsResponse = await fetch(`${issueApiUrl}/comments`, {
-                    headers: { 'Authorization': `Bearer ${githubAccessToken}` }
-                });
-
-                if (issueResponse.ok && commentsResponse.ok) {
-                    const issueData = await issueResponse.json();
-                    const commentsData = await commentsResponse.json();
-                    displayIssueModal(issueData, commentsData);
-                } else {
-                    showNotification('Failed to fetch issue details. Check repository access or API limits.', 'error');
-                    issueModal.classList.add('hidden');
-                }
-
-            } catch (error) {
-                showNotification('Network error while fetching issue details.', 'error');
-                issueModal.classList.add('hidden');
-            }
-        }
-
-        function displayIssueModal(issue, comments) {
-            const isOpen = issue.state === 'open';
-            const stateText = isOpen ? 'Open' : 'Closed';
-            const stateClass = isOpen ? 'bg-gh-open/20 text-gh-open' : 'bg-gh-closed/20 text-gh-closed';
-            const stateIcon = isOpen ? 'circle' : 'check-circle';
-            const repoPath = issue.repository_url.split('/').slice(-2).join('/');
-            const date = new Date(issue.created_at).toLocaleDateString();
-
-            modalTitle.textContent = `#${issue.number} ${issue.title}`;
-            modalState.className = `px-3 py-1 text-sm font-semibold rounded-full flex items-center space-x-1 flex-shrink-0 ${stateClass}`;
-            modalState.innerHTML = `<i data-feather="${stateIcon}" class="w-3 h-3"></i><span>${stateText}</span>`;
-            modalRepoInfo.innerHTML = `Created on <strong>${date}</strong> in repository <code>${repoPath}</code>`;
-            
-            // GitHub API returns GFM (GitHub Flavored Markdown) which includes the signature line.
-            // We strip the signature from the body display.
-            const cleanedBody = issue.body.replace(APP_SIGNATURE, '').trim();
-            modalBodyContent.textContent = cleanedBody || 'No description provided.';
-            
-            // Assignees
-            modalAssignees.innerHTML = '';
-            if (issue.assignees && issue.assignees.length > 0) {
-                issue.assignees.forEach(assignee => {
-                    modalAssignees.innerHTML += `
-                        <a href="${assignee.html_url}" target="_blank" class="flex items-center space-x-1 text-xs px-2 py-1 bg-gray-200 rounded-full hover:bg-gray-300 transition">
-                            <img src="${assignee.avatar_url}" class="w-4 h-4 rounded-full" alt="${assignee.login}">
-                            <span>@${assignee.login}</span>
-                        </a>
-                    `;
-                });
-            } else {
-                modalAssignees.innerHTML = `<span class="text-sm text-gray-500 italic">None assigned.</span>`;
-            }
-
-            // Labels
-            modalLabels.innerHTML = '';
-            if (issue.labels && issue.labels.length > 0) {
-                issue.labels.forEach(label => {
-                    const labelColor = label.color ? `#${label.color}` : '#fef2c0';
-                    const textColor = (parseInt(label.color, 16) > 0xffffff / 2) ? '#000000' : '#ffffff'; // Simple dark/light text heuristic
-                    modalLabels.innerHTML += `
-                        <span style="background-color: ${labelColor}; color: ${textColor};" class="text-xs font-semibold px-2 py-0.5 rounded-full inline-block" title="${label.description || label.name}">
-                            ${label.name}
-                        </span>
-                    `;
-                });
-            } else {
-                modalLabels.innerHTML = `<span class="text-sm text-gray-500 italic">No labels.</span>`;
-            }
-            
-            // Comments
-            modalComments.innerHTML = '';
-            if (comments && comments.length > 0) {
-                comments.forEach(comment => {
-                    modalComments.innerHTML += `
-                        <div class="border p-3 rounded-lg bg-white">
-                            <div class="flex items-center space-x-2 mb-2 border-b pb-2">
-                                <img src="${comment.user.avatar_url}" class="w-6 h-6 rounded-full" alt="${comment.user.login}">
-                                <span class="font-semibold text-gh-dark">@${comment.user.login}</span>
-                                <span class="text-xs text-gray-500">commented on ${new Date(comment.created_at).toLocaleDateString()}</span>
-                            </div>
-                            <p class="text-sm text-gray-700 whitespace-pre-wrap">${comment.body || 'No comment body.'}</p>
-                        </div>
-                    `;
-                });
-            } else {
-                 modalComments.innerHTML = `<p class="text-center py-4 text-gray-500 italic">No comments on this issue yet.</p>`;
-            }
-
-            // GitHub Link
-            modalGithubLink.href = issue.html_url;
-
-            feather.replace();
-            issueModal.classList.remove('hidden');
-        }
-
 
         async function fetchUserIssues(username) {
             if (!username || !githubAccessToken) return;
@@ -851,6 +863,31 @@
             textarea.focus();
         }
         
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (file.size > 1024 * 1024 * 5) { 
+                showNotification('Image size exceeds 5MB. Please choose a smaller file.', 'error');
+                imageUpload.value = ''; 
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const base64Image = e.target.result;
+                const markdown = `\n\n![${file.name}](${base64Image})\n\n`;
+                
+                bodyInput.value += markdown;
+                imageUpload.value = ''; 
+                showNotification(`Image "${file.name}" converted to Base64 and appended to description.`, 'success');
+            };
+            reader.onerror = () => {
+                showNotification('Failed to read image file.', 'error');
+            };
+            reader.readAsDataURL(file);
+        }
+
         function hideMentionDropdown() {
             mentionSuggestionsContainer.classList.add('hidden');
             currentMentionQuery = '';
@@ -1094,6 +1131,8 @@
             modalYesButton.addEventListener('click', handleModalYes);
             modalNoButton.addEventListener('click', handleModalNo);
             
+            imageUpload.addEventListener('change', handleImageUpload);
+            
             // Close the issue details modal
             closeModalButton.addEventListener('click', () => {
                 issueModal.classList.add('hidden');
@@ -1105,7 +1144,6 @@
                     issueModal.classList.add('hidden');
                 }
             });
-
 
             mentionButton.addEventListener('click', () => {
                 insertAtCursor(bodyInput, '@');
