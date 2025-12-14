@@ -16,6 +16,22 @@
             color: #ffffff;
             border-left: 4px solid #3b82f6;
         }
+        /* Custom scrollbar for token text for narrow screens */
+        .scrollbar-thin {
+            scrollbar-width: thin;
+            scrollbar-color: #3b82f6 #f1f1f1;
+        }
+        .scrollbar-thin::-webkit-scrollbar {
+            height: 6px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background-color: #3b82f6;
+            border-radius: 10px;
+        }
     </style>
     <script>
         tailwind.config = {
@@ -225,23 +241,66 @@
                         </p>
                     </section>
 
-                    <!-- AUTHENTICATED/COMING SOON CONTENT -->
-                    <section id="developer-coming-soon" class="hidden bg-white p-12 rounded-xl shadow-lg text-center border-t-4 border-primary-blue">
-                        <div class="flex justify-end mb-4">
+                    <!-- AUTHENTICATED CONSOLE (New functional view) -->
+                    <section id="developer-authenticated-console" class="hidden bg-white p-6 rounded-xl shadow-lg border-t-4 border-primary-blue">
+                        <div class="flex justify-between items-center mb-6 border-b pb-4">
+                            <h3 class="text-xl font-bold text-gray-900 flex items-center">
+                                <i data-feather="terminal" class="w-5 h-5 mr-2 text-primary-blue"></i>
+                                Developer Console
+                            </h3>
                             <button id="github-signout-btn" class="inline-flex items-center text-sm font-semibold text-red-600 hover:text-red-800 transition duration-150">
                                 <i data-feather="log-out" class="w-4 h-4 mr-1"></i>
                                 Sign Out
                             </button>
                         </div>
 
-                        <div class="text-primary-blue mb-4 mx-auto">
-                            <i data-feather="alert-circle" class="w-12 h-12 mx-auto"></i>
+                        <div class="space-y-6">
+                            <!-- GitHub Username -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 mb-1">GitHub Username</label>
+                                <div id="dev-github-username" class="p-3 bg-gray-100 rounded-lg font-mono text-gray-800 text-base">
+                                    Loading...
+                                </div>
+                            </div>
+                            
+                            <!-- Supabase User ID -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 mb-1">IssuePilot User ID (Supabase)</label>
+                                <div id="dev-supabase-id" class="p-3 bg-gray-100 rounded-lg font-mono text-gray-800 text-sm break-words">
+                                    Loading...
+                                </div>
+                            </div>
+
+                            <!-- Access Token -->
+                            <div>
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="block text-sm font-medium text-gray-500">API Access Token</label>
+                                    <button id="copy-token-btn" class="text-primary-blue hover:text-blue-700 text-sm font-medium flex items-center transition duration-150">
+                                        <i data-feather="copy" class="w-4 h-4 mr-1"></i>
+                                        Copy Token
+                                    </button>
+                                </div>
+                                <div id="dev-access-token-container" class="relative">
+                                    <div id="dev-access-token" class="p-3 bg-gray-900 text-green-300 rounded-lg font-mono text-xs overflow-x-auto scrollbar-thin whitespace-nowrap break-all">
+                                        ***********************************
+                                    </div>
+                                    <p class="text-xs text-red-500 mt-2">
+                                        <i data-feather="alert-triangle" class="w-3 h-3 inline-block mr-1"></i>
+                                        Treat this token like a password. Do not expose it in client-side code.
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div class="pt-4 border-t mt-6">
+                                <h4 class="text-lg font-semibold text-gray-800 mb-2">API Usage</h4>
+                                <p class="text-sm text-gray-600">
+                                    Use the token above in the <code>Authorization</code> header for all API calls: 
+                                    <code class="bg-gray-100 p-1 rounded text-primary-blue text-xs">Authorization: Bearer [Your Access Token]</code>
+                                </p>
+                            </div>
                         </div>
-                        <h3 class="text-3xl font-bold text-gray-900 mb-4">Section Coming Soon</h3>
-                        <p class="text-lg text-gray-600 mb-8">
-                            This section is currently not completed, as we are working on developer integration for our product.
-                        </p>
                     </section>
+
                 </div>
                 
             </div>
@@ -274,6 +333,23 @@
             }, 4000);
         };
 
+        const copyToClipboard = (text) => {
+            const tempInput = document.createElement('textarea');
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            
+            // Fallback for secure context issues, though execCommand is deprecated
+            try {
+                document.execCommand('copy');
+                alertMessage('Access Token copied to clipboard!', 'success');
+            } catch (err) {
+                console.error('Copy failed:', err);
+                alertMessage('Failed to copy. Please copy manually.', 'error');
+            }
+            document.body.removeChild(tempInput);
+        };
+
         const updateSession = (session) => {
             currentSession = session;
             console.log("Supabase Session Updated. Authenticated:", !!currentSession);
@@ -287,6 +363,7 @@
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'github',
                 options: {
+                    // This must match the URL you provided: https://issuepilot.pages.dev/docs#developer
                     redirectTo: window.location.origin + window.location.pathname + '#developer'
                 }
             });
@@ -304,21 +381,40 @@
                 alertMessage('Sign-out failed. Check the console for details.', 'error');
             } else {
                 alertMessage('Successfully signed out.', 'success');
+                // Force re-render of the developer page state
+                checkAuthAndRenderDeveloperPage();
             }
         };
         
         const checkAuthAndRenderDeveloperPage = () => {
             const lockedContent = document.getElementById('developer-locked-content');
-            const comingSoonContent = document.getElementById('developer-coming-soon');
+            const consoleContent = document.getElementById('developer-authenticated-console');
             
-            if (!lockedContent || !comingSoonContent) return; 
+            if (!lockedContent || !consoleContent) return; 
 
             if (currentSession) {
                 lockedContent.classList.add('hidden');
-                comingSoonContent.classList.remove('hidden');
+                consoleContent.classList.remove('hidden');
+
+                // Populate Console Data
+                const user = currentSession.user;
+                const token = currentSession.access_token;
+                const githubUsername = user?.user_metadata?.user_name || 'N/A';
+                const supabaseId = user?.id || 'N/A';
+                
+                document.getElementById('dev-github-username').textContent = githubUsername;
+                document.getElementById('dev-supabase-id').textContent = supabaseId;
+                document.getElementById('dev-access-token').textContent = token;
+
+                // Set up copy button listener
+                const copyBtn = document.getElementById('copy-token-btn');
+                if (copyBtn) {
+                    copyBtn.onclick = () => copyToClipboard(token);
+                }
+
             } else {
                 lockedContent.classList.remove('hidden');
-                comingSoonContent.classList.add('hidden');
+                consoleContent.classList.add('hidden');
             }
         };
 
@@ -467,6 +563,8 @@
                 updateSession(session);
                 if (event === 'SIGNED_IN' && window.location.hash.substring(1) === 'developer') {
                     alertMessage('Successfully connected with GitHub!', 'success');
+                    // Check auth again immediately to render the new console with data
+                    checkAuthAndRenderDeveloperPage(); 
                 }
             });
 
@@ -500,12 +598,13 @@
                 });
             });
 
-            const initialHash = window.location.hash.substring(1);
+            const initialHash = window.location.hash.substring(1).split('#')[0]; // Handle double hash case
             const targetId = initialHash || 'overview'; 
             
             setActiveLink(targetId);
             
             if (window.location.hash.substring(1) !== targetId) {
+                // Clean up the URL fragment after authentication
                 history.replaceState(null, null, '#' + targetId);
             }
             
